@@ -37,11 +37,11 @@
             overflow: hidden;
         }
 
-        .sos-button:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(74, 124, 119, 0.4); }
+        .sos-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(74, 124, 119, 0.4); }
 
         .pulse { animation: pulse-animation 2s infinite; }
         @keyframes pulse-animation {
-            0% { box-shadow: 0 0 0 0px rgba(74, 124, 119, 0.4); }
+            0 { box-shadow: 0 0 0 0px rgba(74, 124, 119, 0.4); }
             100% { box-shadow: 0 0 0 30px rgba(74, 124, 119, 0); }
         }
 
@@ -80,38 +80,82 @@
             box-shadow: 0 0 0 4px rgba(74, 124, 119, 0.1);
         }
 
-        .emergency-pill {
+        .emergency-pill, .protocol-pill {
             cursor: pointer;
             transition: all 0.2s;
             border: 1px solid #D1E8E2;
         }
 
-        .emergency-pill.active {
+        .emergency-pill.active, .protocol-pill.active {
             background-color: var(--soft-teal);
             color: white;
             border-color: var(--soft-teal);
         }
 
-        .log-entry {
-            border-left: 2px solid var(--soft-teal);
-            animation: slideInLeft 0.3s ease-out;
+        #activeSosBar {
+            background: var(--soft-teal);
+            color: white;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
         }
-        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        #activeSosBar.show { transform: translateY(0); }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D1E8E2; border-radius: 10px; }
-
-        .ngo-card {
+        .contact-input {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid var(--sage-green);
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 0.8rem;
+            width: 100%;
             transition: all 0.3s;
         }
-        .ngo-card:hover {
-            border-color: var(--soft-teal);
-            transform: scale(1.02);
+        
+        .action-step {
+            border-left: 3px solid var(--soft-teal);
+            padding-left: 12px;
+            margin-bottom: 12px;
+        }
+
+        .relay-log-item {
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 6px 0;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .rssi-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .rssi-fill {
+            height: 100%;
+            background: #10b981;
+            width: 0%;
+            transition: width 0.5s;
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
+
+    <!-- Active SOS Floating Bar -->
+    <div id="activeSosBar" class="p-4 shadow-2xl flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="animate-pulse bg-white/20 p-2 rounded-lg">
+                <i class="fas fa-satellite-dish"></i>
+            </div>
+            <div class="text-xs">
+                <p class="font-bold">SOS Process Active</p>
+                <p class="opacity-80" id="floatingStatus">Relaying signal...</p>
+            </div>
+        </div>
+        <button onclick="goToResponder()" class="bg-white text-soft-teal px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">View Progress</button>
+    </div>
 
     <!-- Header -->
     <header class="p-6 flex flex-wrap justify-between items-center bg-white/60 border-b border-sage-green sticky top-0 z-50">
@@ -127,10 +171,13 @@
             </div>
         </div>
         
-        <div class="flex items-center space-x-4 mt-4 sm:mt-0">
+        <div class="flex items-center space-x-4 mt-4 lg:mt-0">
+            <button onclick="showContactModal()" class="px-4 py-2 rounded-xl border border-soft-teal/30 text-soft-teal text-xs font-bold hover:bg-soft-teal hover:text-white transition-all">
+                <i class="fas fa-headset mr-2"></i>Help & Contact
+            </button>
             <div class="px-4 py-2 rounded-full bg-[#D1E8E2]/50 flex items-center border border-[#4A7C77]/20">
                 <span class="h-2 w-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                <span class="text-xs font-bold text-[#4A7C77]">Network Status: Offline-Ready</span>
+                <span class="text-xs font-bold text-[#4A7C77]">Network: Offline-Ready</span>
             </div>
         </div>
     </header>
@@ -140,41 +187,67 @@
         <!-- SECTION 1: SOS ENTRY (USER VIEW) -->
         <div id="userSection" class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-4 gap-8 fade-in">
             
-            <!-- LEFT COLUMN -->
+            <!-- Left Sidebar -->
             <div class="lg:col-span-1 space-y-4">
+                <!-- Restore Session Button (Conditional) -->
+                <div id="restoreSessionCard" class="hidden glass-card rounded-[2rem] p-5 border-2 border-soft-teal animate-pulse">
+                    <h3 class="text-[10px] font-black text-soft-teal uppercase tracking-widest mb-2">Process Running</h3>
+                    <button onclick="goToResponder()" class="w-full bg-soft-teal text-white py-3 rounded-xl text-[11px] font-black uppercase">
+                        Restore Session <i class="fas fa-arrow-right ml-1"></i>
+                    </button>
+                </div>
+
                 <div class="glass-card rounded-[2rem] p-5">
-                    <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Relay Protocols</h3>
-                    <div class="space-y-3">
-                        <div class="flex items-center space-x-3 p-2 rounded-xl bg-sage-green/10 border border-sage-green/20">
-                            <i class="fab fa-bluetooth text-blue-500 text-sm"></i>
-                            <span class="text-[10px] font-bold text-gray-600">BLE Mesh 5.0</span>
+                    <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Select Relay Method</h3>
+                    <div class="space-y-3" id="protocolContainer">
+                        <div onclick="selectProtocol('ble')" class="protocol-pill active p-3 rounded-xl transition-all" id="pill-ble">
+                            <div class="flex items-center space-x-3">
+                                <i class="fab fa-bluetooth text-blue-500 text-sm"></i>
+                                <span class="text-xs font-bold">BLE Mesh 5.0</span>
+                            </div>
+                            <div class="mt-2 text-[9px] opacity-70 leading-tight protocol-details">
+                                <p class="mb-1">Range: ~100m | Power: Ultralow</p>
+                                <p>Enc: AES-128 Node-to-Node</p>
+                            </div>
                         </div>
-                        <div class="flex items-center space-x-3 p-2 rounded-xl bg-sage-green/10 border border-sage-green/20">
-                            <i class="fas fa-wifi text-orange-400 text-sm"></i>
-                            <span class="text-[10px] font-bold text-gray-600">WiFi Direct (P2P)</span>
+                        <div onclick="selectProtocol('wifi')" class="protocol-pill p-3 rounded-xl transition-all" id="pill-wifi">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-wifi text-orange-400 text-sm"></i>
+                                <span class="text-xs font-bold">WiFi Direct (P2P)</span>
+                            </div>
+                            <div class="mt-2 text-[9px] opacity-70 leading-tight protocol-details hidden">
+                                <p class="mb-1">Range: ~200m | Power: Medium</p>
+                                <p>Bandwidth: 250Mbps (Bulk Relay)</p>
+                            </div>
                         </div>
-                        <div class="flex items-center space-x-3 p-2 rounded-xl bg-sage-green/10 border border-sage-green/20">
-                            <i class="fas fa-broadcast-tower text-purple-500 text-sm"></i>
-                            <span class="text-[10px] font-bold text-gray-600">LoRa (Long Range)</span>
+                        <div onclick="selectProtocol('lora')" class="protocol-pill p-3 rounded-xl transition-all" id="pill-lora">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-broadcast-tower text-purple-500 text-sm"></i>
+                                <span class="text-xs font-bold">LoRaWAN</span>
+                            </div>
+                            <div class="mt-2 text-[9px] opacity-70 leading-tight protocol-details hidden">
+                                <p class="mb-1">Range: ~15km | Power: Low</p>
+                                <p>Mod: CSS (Chirp Spread Spectrum)</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="glass-card rounded-[2rem] p-5 space-y-4">
-                    <h3 class="text-[10px] font-black text-[#4A7C77] uppercase tracking-widest">User Details</h3>
+                    <h3 class="text-[10px] font-black text-[#4A7C77] uppercase tracking-widest">User Identity</h3>
                     <div class="space-y-2">
-                        <input type="text" id="userName" placeholder="Name" class="w-full bg-gray-50 border border-sage-green rounded-xl p-2.5 text-xs input-focus">
-                        <input type="tel" id="userPhone" placeholder="Contact No." class="w-full bg-gray-50 border border-sage-green rounded-xl p-2.5 text-xs input-focus">
+                        <input type="text" id="userName" placeholder="Full Name" class="w-full bg-gray-50 border border-sage-green rounded-xl p-2.5 text-xs input-focus">
+                        <input type="tel" id="userPhone" placeholder="Primary Contact" class="w-full bg-gray-50 border border-sage-green rounded-xl p-2.5 text-xs input-focus">
                     </div>
                 </div>
             </div>
 
-            <!-- MIDDLE COLUMN: SOS Action -->
+            <!-- Main SOS Area -->
             <div class="lg:col-span-3 space-y-6">
                 <div class="glass-card rounded-[3rem] p-8 md:p-10 space-y-8 relative overflow-hidden">
                     <div class="text-center space-y-1">
                         <h2 class="text-3xl font-bold text-[#4A7C77]">Broadcast SOS</h2>
-                        <p class="text-gray-500 text-sm">Propagate your signal through the nearest device mesh.</p>
+                        <p class="text-gray-500 text-sm">Signal will propagate via decentralized peer hopping.</p>
                     </div>
 
                     <div class="grid grid-cols-3 gap-3">
@@ -192,14 +265,14 @@
                         </div>
                     </div>
 
-                    <textarea id="incidentNote" placeholder="Briefly describe the emergency..." 
+                    <textarea id="incidentNote" placeholder="Additional details (e.g., floor number, symptoms, etc.)..." 
                         class="w-full bg-gray-50 border border-sage-green rounded-2xl p-4 text-sm input-focus h-24 transition-all"></textarea>
 
-                    <button type="button" onclick="triggerSOS()" 
+                    <button type="button" onclick="triggerSOS()" id="mainSosBtn"
                         class="sos-button w-full py-12 rounded-[2.5rem] text-white font-black text-3xl flex flex-col items-center justify-center space-y-2 pulse shadow-2xl">
                         <span class="flex items-center space-x-4">
                             <i class="fas fa-wifi text-4xl rotate-90"></i>
-                            <span>INITIATE RELAY</span>
+                            <span id="sosBtnText">INITIATE BLE RELAY</span>
                         </span>
                     </button>
                 </div>
@@ -207,21 +280,37 @@
         </div>
 
         <!-- SECTION 2: RESPONDER & NGO DASHBOARD -->
-        <div id="responderSection" class="w-full max-w-6xl hidden space-y-6 fade-in">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div id="responderSection" class="w-full max-w-7xl hidden space-y-6 fade-in">
+            <div class="flex justify-between items-center mb-2">
+                <button onclick="goToUserSection()" class="btn-secondary px-6 py-2.5 rounded-2xl text-xs font-bold flex items-center space-x-2 shadow-sm">
+                    <i class="fas fa-home"></i>
+                    <span>Minimize to Home</span>
+                </button>
                 
-                <!-- Visualization & ETA -->
-                <div class="lg:col-span-2 space-y-6">
-                    <div class="glass-card rounded-[2.5rem] p-8 flex flex-col h-[450px]">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="font-bold text-[#4A7C77] text-lg">Relay Path Visualization</h3>
+                <button onclick="terminateProcess()" class="btn-terminate px-6 py-2.5 rounded-2xl text-xs font-bold flex items-center space-x-2 shadow-sm">
+                    <i class="fas fa-stop-circle"></i>
+                    <span>Cancel Request</span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left: Advanced Relay Visualization (5 columns) -->
+                <div class="lg:col-span-5 space-y-6">
+                    <div class="glass-card rounded-[2.5rem] p-6 flex flex-col">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="font-bold text-[#4A7C77] text-md">Live Relay Network</h3>
+                                <p id="protocolPathText" class="text-[9px] text-gray-400 font-mono uppercase">Protocol: BLE Mesh</p>
+                            </div>
                             <div class="flex space-x-2">
-                                <div id="hopCounter" class="bg-soft-teal text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Hops: 0</div>
-                                <div id="timerDisplay" class="bg-red-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold hidden">ETA: Calculating...</div>
+                                <div id="hopCounter" class="bg-soft-teal text-white px-2 py-1 rounded-lg text-[9px] font-bold">Hops: 0</div>
+                                <div id="rssiDisplay" class="bg-slate-200 text-slate-600 px-2 py-1 rounded-lg text-[9px] font-bold">RSSI: -85dBm</div>
                             </div>
                         </div>
 
-                        <div class="bg-slate-900 rounded-3xl flex-grow relative overflow-hidden shadow-inner">
+                        <!-- Mesh Map -->
+                        <div class="bg-slate-900 rounded-3xl h-64 relative overflow-hidden shadow-inner mb-4">
                             <svg width="100%" height="100%" viewBox="0 0 800 400" id="meshSvg">
                                 <line x1="80" y1="200" x2="160" y2="100" class="mesh-line opacity-0" id="line1" stroke-width="2" />
                                 <line x1="160" y1="100" x2="220" y2="280" class="mesh-line opacity-0" id="line2" stroke-width="2" />
@@ -237,139 +326,296 @@
                                 <circle cx="720" cy="200" r="14" fill="#2ECC71" id="node5" class="opacity-20" />
                             </svg>
                         </div>
+
+                        <!-- Technical Logs -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                            <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Relay Propagation Logs</h4>
+                            <div id="relayLogs" class="h-32 overflow-y-auto text-[10px] font-mono text-slate-600">
+                                <div class="relay-log-item">Initializing Broadcast via local radios...</div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div id="etaSection" class="glass-card rounded-[2rem] p-8 border-t-4 border-red-500 hidden fade-in">
-                        <div class="flex flex-col md:flex-row justify-between items-center gap-6">
-                            <div class="flex items-center space-x-6">
-                                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-600">
-                                    <i class="fas fa-clock text-3xl"></i>
-                                </div>
-                                <div>
-                                    <h4 class="text-[10px] font-black text-gray-400 uppercase">Est. Response Time</h4>
-                                    <div class="flex items-baseline space-x-1">
-                                        <span id="etaValue" class="text-4xl font-black text-red-600">--</span>
-                                        <span class="text-xs font-bold text-red-600">Mins</span>
-                                    </div>
+                    <!-- Vehicle/Dispatch Info -->
+                    <div id="dispatchDetails" class="glass-card rounded-[2.5rem] p-6 border-l-8 border-soft-teal hidden fade-in">
+                        <div class="flex items-center gap-6">
+                            <div class="relative flex-shrink-0">
+                                <div class="w-16 h-16 bg-sage-green/30 rounded-2xl flex items-center justify-center">
+                                    <i id="vehicleIcon" class="fas fa-ambulance text-2xl text-[#4A7C77]"></i>
                                 </div>
                             </div>
-                            <div class="flex-grow max-w-xs">
-                                <div class="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-                                    <div id="etaProgress" class="h-full bg-red-500 transition-all duration-1000" style="width: 0%"></div>
-                                </div>
-                                <p class="text-[9px] text-center font-bold text-gray-400">EN-ROUTE TO YOUR LAST KNOWN COORDINATES</p>
+                            <div class="flex-grow">
+                                <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-widest">En-Route Unit</h4>
+                                <p id="vehicleName" class="text-md font-bold text-gray-800">Dispatch Pending...</p>
+                                <p id="vehiclePlate" class="text-[10px] text-soft-teal font-mono">STANDBY FOR ASSIGNMENT</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Right Column: NGOs and AI -->
-                <div class="space-y-6">
-                    <div class="glass-card rounded-[2rem] p-6">
-                        <h3 class="font-bold text-[#4A7C77] text-sm mb-4 flex items-center">
-                            <i class="fas fa-hand-holding-heart mr-2"></i> Nearest NGO Responders
-                        </h3>
-                        <div id="ngoList" class="space-y-3">
-                            <div class="ngo-card p-3 rounded-xl border border-sage-green bg-white/50 text-[11px]">
-                                <div class="flex justify-between font-bold text-gray-800">
-                                    <span>Red Cross (Jaipur)</span>
-                                    <span class="text-green-500 text-[9px]"><i class="fas fa-circle animate-pulse mr-1"></i>Active</span>
-                                </div>
-                                <p class="text-gray-500 text-[10px] mt-1">Specialty: First Aid & Triage</p>
-                                <div class="mt-2 pt-2 border-t border-dashed border-sage-green flex justify-between">
-                                    <span class="font-mono text-soft-teal">1800-419-1234</span>
-                                    <button class="px-2 py-1 bg-soft-teal text-white rounded text-[9px]">Contact</button>
-                                </div>
+                <!-- Right: Protocol instructions (7 columns) -->
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="glass-card rounded-[2.5rem] p-8 border-t-8 border-soft-teal bg-gradient-to-br from-white to-sage-green/10">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 class="text-2xl font-black text-[#4A7C77]">IMMEDIATE ACTION PROTOCOL</h2>
+                                <p class="text-xs text-gray-500">Self-help and bystander instructions for this emergency.</p>
                             </div>
-                            <div class="ngo-card p-3 rounded-xl border border-sage-green bg-white/50 text-[11px]">
-                                <div class="flex justify-between font-bold text-gray-800">
-                                    <span>NGO-RAHAT</span>
-                                    <span class="text-green-500 text-[9px]"><i class="fas fa-circle animate-pulse mr-1"></i>Active</span>
+                            <div class="w-14 h-14 bg-soft-teal text-white rounded-full flex items-center justify-center shadow-lg">
+                                <i id="emergencyIconLarge" class="fas fa-heartpulse text-2xl"></i>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="space-y-4">
+                                <div class="flex items-center space-x-2 text-orange-600">
+                                    <i class="fas fa-user-check"></i>
+                                    <h3 class="text-xs font-black uppercase tracking-widest">For the Victim</h3>
                                 </div>
-                                <p class="text-gray-500 text-[10px] mt-1">Specialty: Search & Rescue</p>
-                                <div class="mt-2 pt-2 border-t border-dashed border-sage-green flex justify-between">
-                                    <span class="font-mono text-soft-teal">+91 98290-XXXXX</span>
-                                    <button class="px-2 py-1 bg-soft-teal text-white rounded text-[9px]">Contact</button>
+                                <div id="victimInstructions" class="space-y-3"></div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div class="flex items-center space-x-2 text-blue-600">
+                                    <i class="fas fa-hands-holding-circle"></i>
+                                    <h3 class="text-xs font-black uppercase tracking-widest">For the Helper</h3>
                                 </div>
+                                <div id="helperInstructions" class="space-y-3"></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="glass-card rounded-[2rem] p-6 border-l-8 border-soft-teal">
-                        <h3 class="font-bold text-[#4A7C77] text-sm mb-3">AI Incident Summary</h3>
-                        <div id="aiSummary" class="text-[11px] text-gray-600 leading-relaxed">
-                            Awaiting signal acquisition...
+                    <!-- Row 3: Facilities & NGO -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-card rounded-[2rem] p-6 bg-white/80">
+                            <h3 class="font-bold text-[#4A7C77] text-sm mb-4">Nearby Resources</h3>
+                            <div id="nearbyFacilities" class="space-y-2"></div>
                         </div>
+                        <div class="glass-card rounded-[2rem] p-6 bg-white/80">
+                            <h3 class="font-bold text-[#4A7C77] text-sm mb-4">NGO Contacts</h3>
+                            <div id="ngoList" class="space-y-2">
+                                <div class="p-2.5 rounded-xl border border-sage-green bg-white text-[10px]">
+                                    <div class="flex justify-between font-bold text-gray-800">
+                                        <span>Red Cross Unit-A</span>
+                                        <span class="text-soft-teal">1800-419-1234</span>
+                                    </div>
+                                </div>
+                                <div class="p-2.5 rounded-xl border border-sage-green bg-white text-[10px]">
+                                    <div class="flex justify-between font-bold text-gray-800">
+                                        <span>SDRF Volunteers</span>
+                                        <span class="text-soft-teal">0141-2740-911</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTACT MODAL -->
+        <div id="contactModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="hideContactModal()"></div>
+            <div class="glass-card relative w-full max-w-2xl rounded-[2.5rem] overflow-hidden flex flex-col lg:flex-row shadow-2xl animate-fade-in">
+                <div class="lg:w-2/5 bg-soft-teal p-8 text-white">
+                    <h3 class="text-xl font-bold mb-6">Contact Solace</h3>
+                    <div class="space-y-6">
+                        <div class="flex items-start space-x-3">
+                            <i class="fas fa-envelope mt-1 opacity-70"></i>
+                            <div>
+                                <p class="text-[10px] uppercase font-bold opacity-60">Official Mail</p>
+                                <p class="text-xs">solace.emergency@mesh.com</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <i class="fas fa-phone-volume mt-1 opacity-70"></i>
+                            <div>
+                                <p class="text-[10px] uppercase font-bold opacity-60">Helpline</p>
+                                <p class="text-xs">+91-1800-SOLACE-5</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:w-3/5 p-8 bg-white">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h4 class="font-bold text-gray-800">Inquiry Form</h4>
+                            <p class="text-[11px] text-gray-400">Collaborations & Technical queries.</p>
+                        </div>
+                        <button onclick="hideContactModal()" class="text-gray-300 hover:text-red-500 transition-colors">
+                            <i class="fas fa-times-circle text-xl"></i>
+                        </button>
+                    </div>
+                    <form onsubmit="handleContactSubmit(event)" class="space-y-4">
+                        <input type="text" required class="contact-input" placeholder="Name">
+                        <input type="text" required class="contact-input" placeholder="Email/Phone">
+                        <textarea required rows="3" class="contact-input resize-none" placeholder="Message"></textarea>
+                        <button type="submit" class="w-full bg-soft-teal text-white py-3 rounded-xl font-bold text-xs hover:bg-accent-teal transition-all">Submit</button>
+                    </form>
+                    <div id="formSuccess" class="hidden mt-4 text-center text-green-600 font-bold text-xs">
+                        <i class="fas fa-check-circle mr-2"></i> Message Sent!
                     </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <footer class="p-8 bg-white border-t border-sage-green mt-10 text-center">
-        <p class="text-[10px] text-gray-400 font-medium">© 2026 SOLACE | Team: Tanveen, Jiya, Mahima, Pankhuri</p>
+    <footer class="p-8 bg-white border-t border-sage-green text-center">
+        <p class="text-[10px] text-gray-400 font-medium">© 2026 SOLACE | Team-PS05: Tanveen, Jiya, Mahima, Pankhuri</p>
     </footer>
 
     <script>
         let selectedEmergency = 'Medical';
+        let currentProtocol = 'ble';
+        let simInterval = null;
+        let isSosActive = false;
+        let currentHops = 0;
+
+        const protocolData = {
+            ble: { name: "BLE Mesh 5.0", btn: "INITIATE BLE RELAY", path: "BLE → Peer Node → Local Hub", speed: 1200, logs: ["BLE Radio active", "Scanning for peers...", "Neighbor found: GalaxyS23", "AES Handshake successful", "Packet #882 forwarded"] },
+            wifi: { name: "WiFi Direct", btn: "INITIATE WIFI RELAY", path: "WiFi P2P → Extender → Node", speed: 800, logs: ["WLAN P2P initialized", "SSID 'Emergency_Node' found", "DHCP lease granted", "TCP tunnel established", "Relaying high-priority data"] },
+            lora: { name: "LoRaWAN", btn: "INITIATE LORA RELAY", path: "LoRa → Gateway → Satellite", speed: 1800, logs: ["LoRa Module warmed up", "SF12 spreading factor set", "Preamble detected", "Uplink to Gateway #094", "Waiting for ACK..."] }
+        };
+
+        const vehicleData = {
+            'Medical': { name: "Cardiac ALS Ambulance", plate: "RJ 14 EM 2026", icon: "fa-ambulance", typeIcon: "fa-heartpulse" },
+            'Fire': { name: "Water Pumper Engine", plate: "RJ 14 FD 9912", icon: "fa-truck-field", typeIcon: "fa-fire" },
+            'Rescue': { name: "Specialized Rescue Van", plate: "RJ 14 RV 4455", icon: "fa-truck-monster", typeIcon: "fa-person-falling" }
+        };
+
+        const facilityData = {
+            'Medical': [{ name: "Fortis Memorial", dist: "1.2 km" }, { name: "Apex Health", dist: "2.8 km" }],
+            'Fire': [{ name: "Station #05", dist: "3.5 km" }, { name: "Malviya HQ", dist: "4.1 km" }],
+            'Rescue': [{ name: "SDRF Beta", dist: "2.1 km" }, { name: "Police Post", dist: "0.8 km" }]
+        };
+
+        const protocols = {
+            'Medical': {
+                victim: ["Stay still", "Focus on slow breathing", "Apply pressure if bleeding"],
+                helper: ["Check responsiveness", "Clear airway", "Elevate legs if shock suspected"]
+            },
+            'Fire': {
+                victim: ["Stay low to floor", "Seal gaps under door", "Stop, Drop, Roll if needed"],
+                helper: ["Ensure safe exit route", "Help victim stay low", "Douse burns with water"]
+            },
+            'Rescue': {
+                victim: ["Conserve energy", "Tap 3 times on walls", "Cover mouth/nose"],
+                helper: ["Don't move if spinal injury", "Talk to keep conscious", "Mark exact location"]
+            }
+        };
+
+        function selectProtocol(id) {
+            if (isSosActive) return;
+            document.querySelectorAll('.protocol-pill').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.protocol-details').forEach(d => d.classList.add('hidden'));
+            const selected = document.getElementById('pill-' + id);
+            selected.classList.add('active');
+            selected.querySelector('.protocol-details').classList.remove('hidden');
+            currentProtocol = id;
+            document.getElementById('sosBtnText').innerText = protocolData[id].btn;
+        }
 
         function selectType(el, type) {
+            if (isSosActive) return;
             document.querySelectorAll('.emergency-pill').forEach(p => p.classList.remove('active'));
             el.classList.add('active');
             selectedEmergency = type;
         }
 
         function triggerSOS() {
-            const btn = document.querySelector('.sos-button');
-            btn.classList.add('opacity-50');
-            btn.disabled = true;
+            isSosActive = true;
+            document.getElementById('restoreSessionCard').classList.remove('hidden');
+            document.getElementById('mainSosBtn').classList.add('opacity-50');
+            document.getElementById('mainSosBtn').disabled = true;
             
+            updateResponderUI();
+
             setTimeout(() => {
-                document.getElementById('userSection').classList.add('hidden');
-                document.getElementById('responderSection').classList.remove('hidden');
+                goToResponder();
                 runSimulation();
             }, 800);
         }
 
-        function runSimulation() {
-            const hopIds = ['line1', 'line2', 'line3', 'line4', 'line5'];
-            const nodeIds = ['node1', 'node2', 'node3', 'node4', 'node5'];
-            let currentHop = 0;
-
-            const interval = setInterval(() => {
-                if (currentHop < hopIds.length) {
-                    document.getElementById(hopIds[currentHop]).classList.remove('opacity-0');
-                    const node = document.getElementById(nodeIds[currentHop]);
-                    node.classList.remove('opacity-20');
-                    node.classList.add('relay-pulse');
-                    currentHop++;
-                    document.getElementById('hopCounter').innerText = `Hops: ${currentHop}`;
-                } else {
-                    clearInterval(interval);
-                    showFinalStatus();
-                }
-            }, 1000);
+        function addRelayLog(msg) {
+            const logs = document.getElementById('relayLogs');
+            const item = document.createElement('div');
+            item.className = 'relay-log-item';
+            item.innerHTML = `<span class="text-soft-teal">[${new Date().toLocaleTimeString([], {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'})}]</span> ${msg}`;
+            logs.prepend(item);
         }
 
-        function showFinalStatus() {
-            const eta = selectedEmergency === 'Medical' ? 12 : (selectedEmergency === 'Fire' ? 8 : 25);
-            document.getElementById('timerDisplay').classList.remove('hidden');
-            document.getElementById('timerDisplay').innerText = `ETA: ~${eta}m`;
-            
-            document.getElementById('etaSection').classList.remove('hidden');
-            document.getElementById('etaValue').innerText = eta;
-            
-            setTimeout(() => {
-                document.getElementById('etaProgress').style.width = '40%';
-            }, 100);
+        function updateResponderUI() {
+            const vInfo = vehicleData[selectedEmergency];
+            document.getElementById('vehicleName').innerText = vInfo.name;
+            document.getElementById('vehiclePlate').innerText = vInfo.plate;
+            document.getElementById('vehicleIcon').className = `fas ${vInfo.icon} text-2xl text-[#4A7C77]`;
+            document.getElementById('emergencyIconLarge').className = `fas ${vInfo.typeIcon} text-2xl`;
+            document.getElementById('protocolPathText').innerText = "Protocol: " + protocolData[currentProtocol].name;
+            document.getElementById('floatingStatus').innerText = "Signal: " + protocolData[currentProtocol].name;
 
-            document.getElementById('aiSummary').innerHTML = `
-                <div class='space-y-2'>
-                    <p><strong>Priority:</strong> <span class='text-red-600'>CRITICAL</span></p>
-                    <p><strong>Signal Route:</strong> 3 Offline Hops (BLE/LoRa) + 2 Internet Hops.</p>
-                    <p><strong>Response:</strong> Nearest NGO <em>(Red Cross)</em> alerted. Dispatch initiated from base station 4B.</p>
-                </div>
-            `;
+            const facContainer = document.getElementById('nearbyFacilities');
+            facContainer.innerHTML = '';
+            facilityData[selectedEmergency].forEach(f => {
+                facContainer.innerHTML += `<div class="p-2 border border-slate-200 rounded-xl text-[10px] flex justify-between"><span>${f.name}</span> <span class="text-slate-400">${f.dist}</span></div>`;
+            });
+
+            const prot = protocols[selectedEmergency];
+            document.getElementById('victimInstructions').innerHTML = prot.victim.map(s => `<div class="action-step text-[11px]">${s}</div>`).join('');
+            document.getElementById('helperInstructions').innerHTML = prot.helper.map(s => `<div class="action-step text-[11px]" style="border-color:#3B82F6">${s}</div>`).join('');
+        }
+
+        function runSimulation() {
+            if (simInterval && simInterval !== "COMPLETED") return;
+            currentHops = 0;
+            const hopIds = ['line1', 'line2', 'line3', 'line4', 'line5'];
+            const nodeIds = ['node1', 'node2', 'node3', 'node4', 'node5'];
+            const logs = protocolData[currentProtocol].logs;
+
+            simInterval = setInterval(() => {
+                if (currentHops < hopIds.length) {
+                    document.getElementById(hopIds[currentHops]).classList.remove('opacity-0');
+                    document.getElementById(nodeIds[currentHops]).classList.remove('opacity-20');
+                    document.getElementById(nodeIds[currentHops]).classList.add('relay-pulse');
+                    
+                    if (logs[currentHops]) addRelayLog(logs[currentHops]);
+                    
+                    // RSSI fluctuates as we jump nodes
+                    const rssi = -40 - Math.floor(Math.random() * 40);
+                    document.getElementById('rssiDisplay').innerText = `RSSI: ${rssi}dBm`;
+                    
+                    currentHops++;
+                    document.getElementById('hopCounter').innerText = `Hops: ${currentHops}`;
+                } else {
+                    clearInterval(simInterval);
+                    simInterval = "COMPLETED";
+                    addRelayLog("SOS Reached Emergency Services Terminal.");
+                    document.getElementById('dispatchDetails').classList.remove('hidden');
+                }
+            }, protocolData[currentProtocol].speed);
+        }
+
+        function goToUserSection() {
+            document.getElementById('responderSection').classList.add('hidden');
+            document.getElementById('userSection').classList.remove('hidden');
+            if (isSosActive) document.getElementById('activeSosBar').classList.add('show');
+        }
+
+        function goToResponder() {
+            document.getElementById('userSection').classList.add('hidden');
+            document.getElementById('responderSection').classList.remove('hidden');
+            document.getElementById('activeSosBar').classList.remove('show');
+        }
+
+        function terminateProcess() {
+            if (confirm("Terminate Emergency Process? This will clear all local relay data.")) location.reload();
+        }
+
+        function showContactModal() { document.getElementById('contactModal').classList.remove('hidden'); }
+        function hideContactModal() { document.getElementById('contactModal').classList.add('hidden'); }
+        function handleContactSubmit(e) {
+            e.preventDefault();
+            document.getElementById('formSuccess').classList.remove('hidden');
+            setTimeout(() => hideContactModal(), 2000);
         }
     </script>
 </body>
