@@ -14,6 +14,7 @@
             --accent-teal: #365c58;
             --emergency-red: #E63946;
             --internet-blue: #3A86FF;
+            --voice-orange: #f59e0b;
         }
 
         body {
@@ -43,6 +44,13 @@
         @keyframes pulse-animation {
             0 { box-shadow: 0 0 0 0px rgba(74, 124, 119, 0.4); }
             100% { box-shadow: 0 0 0 30px rgba(74, 124, 119, 0); }
+        }
+
+        .voice-pulse { animation: voice-pulse-animation 1.5s infinite; }
+        @keyframes voice-pulse-animation {
+            0 { transform: scale(1); box-shadow: 0 0 0 0px rgba(245, 158, 11, 0.6); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(245, 158, 11, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0px rgba(245, 158, 11, 0); }
         }
 
         .mesh-line {
@@ -123,25 +131,68 @@
 
         .relay-log-item {
             border-bottom: 1px solid rgba(0,0,0,0.05);
-            padding: 6px 0;
+            padding: 8px 0;
             animation: fadeIn 0.3s ease-out;
         }
+        
+        .log-simple { display: block; font-weight: 700; color: #1e293b; font-size: 11px; }
+        .log-tech { display: block; font-size: 9px; color: #94a3b8; font-family: monospace; }
 
-        .rssi-bar {
-            height: 4px;
-            background: #e2e8f0;
-            border-radius: 2px;
-            overflow: hidden;
+        .node-label { font-size: 10px; fill: white; font-weight: bold; text-anchor: middle; pointer-events: none; }
+
+        .progress-bar-container { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; transition: width 0.5s ease; }
+
+        /* Direct Call FAB */
+        .call-fab {
+            position: fixed;
+            right: 30px;
+            bottom: 30px;
+            width: 70px;
+            height: 70px;
+            background: var(--voice-orange);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 10px 25px rgba(245, 158, 11, 0.4);
+            cursor: pointer;
+            z-index: 90;
+            transition: all 0.3s;
         }
-        .rssi-fill {
-            height: 100%;
-            background: #10b981;
-            width: 0%;
-            transition: width 0.5s;
+        .call-fab:hover { transform: scale(1.1); background: #d97706; }
+        
+        .voice-status-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
+
+    <!-- Accessible Call Icon (For users who can't read/write) -->
+    <div class="call-fab voice-pulse" onclick="startVoiceSOS()" id="voiceFab" title="Speak to Help">
+        <i class="fas fa-phone-alt"></i>
+    </div>
+
+    <!-- Voice Recording Overlay -->
+    <div id="voiceOverlay" class="voice-status-overlay fade-in">
+        <div class="w-32 h-32 rounded-full border-4 border-orange-500 flex items-center justify-center mb-8 voice-pulse bg-orange-500/20">
+            <i class="fas fa-microphone text-5xl"></i>
+        </div>
+        <h2 class="text-3xl font-black mb-2 uppercase tracking-tighter">Listening...</h2>
+        <p class="text-orange-200 text-lg">Just speak. We are relaying your voice.</p>
+        <button onclick="cancelVoice()" class="mt-12 px-8 py-3 bg-white/10 rounded-full text-xs font-bold uppercase tracking-widest border border-white/20">Cancel</button>
+    </div>
 
     <!-- Active SOS Floating Bar -->
     <div id="activeSosBar" class="p-4 shadow-2xl flex justify-between items-center">
@@ -187,9 +238,7 @@
         <!-- SECTION 1: SOS ENTRY (USER VIEW) -->
         <div id="userSection" class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-4 gap-8 fade-in">
             
-            <!-- Left Sidebar -->
             <div class="lg:col-span-1 space-y-4">
-                <!-- Restore Session Button (Conditional) -->
                 <div id="restoreSessionCard" class="hidden glass-card rounded-[2rem] p-5 border-2 border-soft-teal animate-pulse">
                     <h3 class="text-[10px] font-black text-soft-teal uppercase tracking-widest mb-2">Process Running</h3>
                     <button onclick="goToResponder()" class="w-full bg-soft-teal text-white py-3 rounded-xl text-[11px] font-black uppercase">
@@ -205,19 +254,11 @@
                                 <i class="fab fa-bluetooth text-blue-500 text-sm"></i>
                                 <span class="text-xs font-bold">BLE Mesh 5.0</span>
                             </div>
-                            <div class="mt-2 text-[9px] opacity-70 leading-tight protocol-details">
-                                <p class="mb-1">Range: ~100m | Power: Ultralow</p>
-                                <p>Enc: AES-128 Node-to-Node</p>
-                            </div>
                         </div>
                         <div onclick="selectProtocol('wifi')" class="protocol-pill p-3 rounded-xl transition-all" id="pill-wifi">
                             <div class="flex items-center space-x-3">
                                 <i class="fas fa-wifi text-orange-400 text-sm"></i>
-                                <span class="text-xs font-bold">WiFi Direct (P2P)</span>
-                            </div>
-                            <div class="mt-2 text-[9px] opacity-70 leading-tight protocol-details hidden">
-                                <p class="mb-1">Range: ~200m | Power: Medium</p>
-                                <p>Bandwidth: 250Mbps (Bulk Relay)</p>
+                                <span class="text-xs font-bold">WiFi Direct</span>
                             </div>
                         </div>
                         <div onclick="selectProtocol('lora')" class="protocol-pill p-3 rounded-xl transition-all" id="pill-lora">
@@ -225,29 +266,16 @@
                                 <i class="fas fa-broadcast-tower text-purple-500 text-sm"></i>
                                 <span class="text-xs font-bold">LoRaWAN</span>
                             </div>
-                            <div class="mt-2 text-[9px] opacity-70 leading-tight protocol-details hidden">
-                                <p class="mb-1">Range: ~15km | Power: Low</p>
-                                <p>Mod: CSS (Chirp Spread Spectrum)</p>
-                            </div>
                         </div>
-                    </div>
-                </div>
-
-                <div class="glass-card rounded-[2rem] p-5 space-y-4">
-                    <h3 class="text-[10px] font-black text-[#4A7C77] uppercase tracking-widest">User Identity</h3>
-                    <div class="space-y-2">
-                        <input type="text" id="userName" placeholder="Full Name" class="w-full bg-gray-50 border border-sage-green rounded-xl p-2.5 text-xs input-focus">
-                        <input type="tel" id="userPhone" placeholder="Primary Contact" class="w-full bg-gray-50 border border-sage-green rounded-xl p-2.5 text-xs input-focus">
                     </div>
                 </div>
             </div>
 
-            <!-- Main SOS Area -->
             <div class="lg:col-span-3 space-y-6">
                 <div class="glass-card rounded-[3rem] p-8 md:p-10 space-y-8 relative overflow-hidden">
                     <div class="text-center space-y-1">
                         <h2 class="text-3xl font-bold text-[#4A7C77]">Broadcast SOS</h2>
-                        <p class="text-gray-500 text-sm">Signal will propagate via decentralized peer hopping.</p>
+                        <p class="text-gray-500 text-sm">Peer-to-peer verification active to prevent false reports.</p>
                     </div>
 
                     <div class="grid grid-cols-3 gap-3">
@@ -265,7 +293,7 @@
                         </div>
                     </div>
 
-                    <textarea id="incidentNote" placeholder="Additional details (e.g., floor number, symptoms, etc.)..." 
+                    <textarea id="incidentNote" placeholder="Specific location or symptoms..." 
                         class="w-full bg-gray-50 border border-sage-green rounded-2xl p-4 text-sm input-focus h-24 transition-all"></textarea>
 
                     <button type="button" onclick="triggerSOS()" id="mainSosBtn"
@@ -279,15 +307,15 @@
             </div>
         </div>
 
-        <!-- SECTION 2: RESPONDER & NGO DASHBOARD -->
+        <!-- SECTION 2: RESPONDER & VERIFICATION DASHBOARD -->
         <div id="responderSection" class="w-full max-w-7xl hidden space-y-6 fade-in">
             <div class="flex justify-between items-center mb-2">
-                <button onclick="goToUserSection()" class="btn-secondary px-6 py-2.5 rounded-2xl text-xs font-bold flex items-center space-x-2 shadow-sm">
+                <button onclick="goToUserSection()" class="bg-white border border-soft-teal/30 px-6 py-2.5 rounded-2xl text-xs font-black text-soft-teal flex items-center space-x-2 shadow-sm uppercase tracking-wider">
                     <i class="fas fa-home"></i>
-                    <span>Minimize to Home</span>
+                    <span>Minimize</span>
                 </button>
                 
-                <button onclick="terminateProcess()" class="btn-terminate px-6 py-2.5 rounded-2xl text-xs font-bold flex items-center space-x-2 shadow-sm">
+                <button onclick="terminateProcess()" class="bg-red-50 text-red-600 px-6 py-2.5 rounded-2xl text-xs font-black flex items-center space-x-2 shadow-sm uppercase tracking-wider">
                     <i class="fas fa-stop-circle"></i>
                     <span>Cancel Request</span>
                 </button>
@@ -295,48 +323,59 @@
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                <!-- Left: Advanced Relay Visualization (5 columns) -->
                 <div class="lg:col-span-5 space-y-6">
                     <div class="glass-card rounded-[2.5rem] p-6 flex flex-col">
-                        <div class="flex justify-between items-center mb-4">
-                            <div>
-                                <h3 class="font-bold text-[#4A7C77] text-md">Live Relay Network</h3>
-                                <p id="protocolPathText" class="text-[9px] text-gray-400 font-mono uppercase">Protocol: BLE Mesh</p>
+                        <div class="mb-4">
+                            <div class="flex justify-between items-end mb-2">
+                                <h3 class="font-bold text-[#4A7C77] text-md">Community Trust Score</h3>
+                                <span id="verificationPercent" class="text-xs font-black text-gray-500">0% Verified</span>
                             </div>
-                            <div class="flex space-x-2">
-                                <div id="hopCounter" class="bg-soft-teal text-white px-2 py-1 rounded-lg text-[9px] font-bold">Hops: 0</div>
-                                <div id="rssiDisplay" class="bg-slate-200 text-slate-600 px-2 py-1 rounded-lg text-[9px] font-bold">RSSI: -85dBm</div>
+                            <div class="progress-bar-container">
+                                <div id="verificationBar" class="progress-fill bg-yellow-400" style="width: 0%"></div>
                             </div>
+                            <p class="text-[9px] text-gray-400 mt-2 italic">*Requires 70% neighbor consensus to initiate dispatch</p>
                         </div>
 
-                        <!-- Mesh Map -->
+                        <!-- Mesh Map with Labels -->
                         <div class="bg-slate-900 rounded-3xl h-64 relative overflow-hidden shadow-inner mb-4">
                             <svg width="100%" height="100%" viewBox="0 0 800 400" id="meshSvg">
                                 <line x1="80" y1="200" x2="160" y2="100" class="mesh-line opacity-0" id="line1" stroke-width="2" />
                                 <line x1="160" y1="100" x2="220" y2="280" class="mesh-line opacity-0" id="line2" stroke-width="2" />
-                                <line x1="220" y1="280" x2="400" y2="200" class="mesh-line opacity-0" id="line3" stroke-width="3" stroke="#9B59B6" />
+                                <line x1="220" y1="280" x2="400" y2="200" class="mesh-line opacity-0" id="line3" stroke-width="3" />
                                 <line x1="400" y1="200" x2="580" y2="150" class="internet-line opacity-0" id="line4" stroke-width="2" />
                                 <line x1="580" y1="150" x2="720" y2="200" class="internet-line opacity-0" id="line5" stroke-width="2" />
                                 
-                                <circle cx="80" cy="200" r="10" fill="#E63946" class="node-active" />
-                                <circle cx="160" cy="100" r="8" fill="#4A7C77" id="node1" class="opacity-20" />
-                                <circle cx="220" cy="280" r="8" fill="#4A7C77" id="node2" class="opacity-20" />
-                                <circle cx="400" cy="200" r="14" fill="#9B59B6" id="node3" class="opacity-20" />
-                                <circle cx="580" cy="150" r="8" fill="#3A86FF" id="node4" class="opacity-20" />
-                                <circle cx="720" cy="200" r="14" fill="#2ECC71" id="node5" class="opacity-20" />
+                                <circle cx="80" cy="200" r="12" fill="#E63946" class="node-active" />
+                                <text x="80" y="235" class="node-label">SENDER</text>
+
+                                <circle cx="160" cy="100" r="10" fill="#4A7C77" id="node1" class="opacity-20" />
+                                <text x="160" y="80" class="node-label">Peer 1</text>
+
+                                <circle cx="220" cy="280" r="10" fill="#4A7C77" id="node2" class="opacity-20" />
+                                <text x="220" y="315" class="node-label">Peer 2</text>
+
+                                <circle cx="400" cy="200" r="16" fill="#9B59B6" id="node3" class="opacity-20" />
+                                <text x="400" y="240" class="node-label" style="fill:#9B59B6">Solace Hub</text>
+
+                                <circle cx="580" cy="150" r="10" fill="#3A86FF" id="node4" class="opacity-20" />
+                                <text x="580" y="130" class="node-label" style="fill:#3A86FF">Gateway</text>
+
+                                <circle cx="720" cy="200" r="16" fill="#2ECC71" id="node5" class="opacity-20" />
+                                <text x="720" y="240" class="node-label" style="fill:#2ECC71">DISPATCH</text>
                             </svg>
                         </div>
 
-                        <!-- Technical Logs -->
                         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
-                            <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Relay Propagation Logs</h4>
-                            <div id="relayLogs" class="h-32 overflow-y-auto text-[10px] font-mono text-slate-600">
-                                <div class="relay-log-item">Initializing Broadcast via local radios...</div>
+                            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Live Status Journey</h4>
+                            <div id="relayLogs" class="h-32 overflow-y-auto pr-2">
+                                <div class="relay-log-item">
+                                    <span class="log-simple">Authenticating device identity...</span>
+                                    <span class="log-tech">SEC_AUTH_INITIALIZED</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Vehicle/Dispatch Info -->
                     <div id="dispatchDetails" class="glass-card rounded-[2.5rem] p-6 border-l-8 border-soft-teal hidden fade-in">
                         <div class="flex items-center gap-6">
                             <div class="relative flex-shrink-0">
@@ -346,20 +385,19 @@
                             </div>
                             <div class="flex-grow">
                                 <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-widest">En-Route Unit</h4>
-                                <p id="vehicleName" class="text-md font-bold text-gray-800">Dispatch Pending...</p>
-                                <p id="vehiclePlate" class="text-[10px] text-soft-teal font-mono">STANDBY FOR ASSIGNMENT</p>
+                                <p id="vehicleName" class="text-md font-bold text-gray-800">Assigning...</p>
+                                <p id="vehiclePlate" class="text-[10px] text-soft-teal font-mono">CONFIRMED GENUINE</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Right: Protocol instructions (7 columns) -->
                 <div class="lg:col-span-7 space-y-6">
                     <div class="glass-card rounded-[2.5rem] p-8 border-t-8 border-soft-teal bg-gradient-to-br from-white to-sage-green/10">
                         <div class="flex items-center justify-between mb-6">
                             <div>
-                                <h2 class="text-2xl font-black text-[#4A7C77]">IMMEDIATE ACTION PROTOCOL</h2>
-                                <p class="text-xs text-gray-500">Self-help and bystander instructions for this emergency.</p>
+                                <h2 class="text-2xl font-black text-[#4A7C77]">CRITICAL ACTIONS</h2>
+                                <p class="text-xs text-gray-500">Wait for verification or follow steps below.</p>
                             </div>
                             <div class="w-14 h-14 bg-soft-teal text-white rounded-full flex items-center justify-center shadow-lg">
                                 <i id="emergencyIconLarge" class="fas fa-heartpulse text-2xl"></i>
@@ -370,7 +408,7 @@
                             <div class="space-y-4">
                                 <div class="flex items-center space-x-2 text-orange-600">
                                     <i class="fas fa-user-check"></i>
-                                    <h3 class="text-xs font-black uppercase tracking-widest">For the Victim</h3>
+                                    <h3 class="text-xs font-black uppercase tracking-widest">Self Action</h3>
                                 </div>
                                 <div id="victimInstructions" class="space-y-3"></div>
                             </div>
@@ -378,14 +416,13 @@
                             <div class="space-y-4">
                                 <div class="flex items-center space-x-2 text-blue-600">
                                     <i class="fas fa-hands-holding-circle"></i>
-                                    <h3 class="text-xs font-black uppercase tracking-widest">For the Helper</h3>
+                                    <h3 class="text-xs font-black uppercase tracking-widest">Helper Action</h3>
                                 </div>
                                 <div id="helperInstructions" class="space-y-3"></div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Row 3: Facilities & NGO -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="glass-card rounded-[2rem] p-6 bg-white/80">
                             <h3 class="font-bold text-[#4A7C77] text-sm mb-4">Nearby Resources</h3>
@@ -396,14 +433,8 @@
                             <div id="ngoList" class="space-y-2">
                                 <div class="p-2.5 rounded-xl border border-sage-green bg-white text-[10px]">
                                     <div class="flex justify-between font-bold text-gray-800">
-                                        <span>Red Cross Unit-A</span>
-                                        <span class="text-soft-teal">1800-419-1234</span>
-                                    </div>
-                                </div>
-                                <div class="p-2.5 rounded-xl border border-sage-green bg-white text-[10px]">
-                                    <div class="flex justify-between font-bold text-gray-800">
-                                        <span>SDRF Volunteers</span>
-                                        <span class="text-soft-teal">0141-2740-911</span>
+                                        <span>Community Volunteers</span>
+                                        <span class="text-soft-teal">Verified Net</span>
                                     </div>
                                 </div>
                             </div>
@@ -413,106 +444,63 @@
             </div>
         </div>
 
-        <!-- CONTACT MODAL -->
         <div id="contactModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="hideContactModal()"></div>
-            <div class="glass-card relative w-full max-w-2xl rounded-[2.5rem] overflow-hidden flex flex-col lg:flex-row shadow-2xl animate-fade-in">
-                <div class="lg:w-2/5 bg-soft-teal p-8 text-white">
-                    <h3 class="text-xl font-bold mb-6">Contact Solace</h3>
-                    <div class="space-y-6">
-                        <div class="flex items-start space-x-3">
-                            <i class="fas fa-envelope mt-1 opacity-70"></i>
-                            <div>
-                                <p class="text-[10px] uppercase font-bold opacity-60">Official Mail</p>
-                                <p class="text-xs">solace.emergency@mesh.com</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start space-x-3">
-                            <i class="fas fa-phone-volume mt-1 opacity-70"></i>
-                            <div>
-                                <p class="text-[10px] uppercase font-bold opacity-60">Helpline</p>
-                                <p class="text-xs">+91-1800-SOLACE-5</p>
-                            </div>
-                        </div>
-                    </div>
+            <div class="glass-card relative w-full max-w-2xl rounded-[2.5rem] p-8 bg-white shadow-2xl animate-fade-in">
+                <div class="flex justify-between items-start mb-6">
+                    <h4 class="font-bold text-gray-800">Support Inquiry</h4>
+                    <button onclick="hideContactModal()"><i class="fas fa-times-circle text-xl text-gray-300"></i></button>
                 </div>
-                <div class="lg:w-3/5 p-8 bg-white">
-                    <div class="flex justify-between items-start mb-6">
-                        <div>
-                            <h4 class="font-bold text-gray-800">Inquiry Form</h4>
-                            <p class="text-[11px] text-gray-400">Collaborations & Technical queries.</p>
-                        </div>
-                        <button onclick="hideContactModal()" class="text-gray-300 hover:text-red-500 transition-colors">
-                            <i class="fas fa-times-circle text-xl"></i>
-                        </button>
-                    </div>
-                    <form onsubmit="handleContactSubmit(event)" class="space-y-4">
-                        <input type="text" required class="contact-input" placeholder="Name">
-                        <input type="text" required class="contact-input" placeholder="Email/Phone">
-                        <textarea required rows="3" class="contact-input resize-none" placeholder="Message"></textarea>
-                        <button type="submit" class="w-full bg-soft-teal text-white py-3 rounded-xl font-bold text-xs hover:bg-accent-teal transition-all">Submit</button>
-                    </form>
-                    <div id="formSuccess" class="hidden mt-4 text-center text-green-600 font-bold text-xs">
-                        <i class="fas fa-check-circle mr-2"></i> Message Sent!
-                    </div>
-                </div>
+                <form onsubmit="handleContactSubmit(event)" class="space-y-4">
+                    <input type="text" required class="contact-input" placeholder="Name">
+                    <input type="text" required class="contact-input" placeholder="Inquiry Details">
+                    <button type="submit" class="w-full bg-soft-teal text-white py-3 rounded-xl font-bold">Send</button>
+                </form>
             </div>
         </div>
     </main>
-
-    <footer class="p-8 bg-white border-t border-sage-green text-center">
-        <p class="text-[10px] text-gray-400 font-medium">© 2026 SOLACE | Team-PS05: Tanveen, Jiya, Mahima, Pankhuri</p>
-    </footer>
 
     <script>
         let selectedEmergency = 'Medical';
         let currentProtocol = 'ble';
         let simInterval = null;
         let isSosActive = false;
-        let currentHops = 0;
+        let trustScore = 0;
+        let isVoiceMode = false;
 
         const protocolData = {
-            ble: { name: "BLE Mesh 5.0", btn: "INITIATE BLE RELAY", path: "BLE → Peer Node → Local Hub", speed: 1200, logs: ["BLE Radio active", "Scanning for peers...", "Neighbor found: GalaxyS23", "AES Handshake successful", "Packet #882 forwarded"] },
-            wifi: { name: "WiFi Direct", btn: "INITIATE WIFI RELAY", path: "WiFi P2P → Extender → Node", speed: 800, logs: ["WLAN P2P initialized", "SSID 'Emergency_Node' found", "DHCP lease granted", "TCP tunnel established", "Relaying high-priority data"] },
-            lora: { name: "LoRaWAN", btn: "INITIATE LORA RELAY", path: "LoRa → Gateway → Satellite", speed: 1800, logs: ["LoRa Module warmed up", "SF12 spreading factor set", "Preamble detected", "Uplink to Gateway #094", "Waiting for ACK..."] }
+            ble: { 
+                speed: 1500, 
+                logs: [
+                    { simple: "Sending verification pop-up to 12 nearby devices...", tech: "BROADCAST_AUTH_CHALLENGE" },
+                    { simple: "Receiving neighbor affirmations (Peer 1 & 2 confirmed).", tech: "CONSENSUS_COLLECTING: 2/5" },
+                    { simple: "Trust score reached 75%. Authenticity verified.", tech: "CONSENSUS_THRESHOLD_MET: 0.75" },
+                    { simple: "Relaying confirmed signal to Solace Hub.", tech: "RELAY_UPSTREAM: HUB_01" },
+                    { simple: "Dispatch finalized. Professional help is on the way.", tech: "DISPATCH_TERMINAL_ACK" }
+                ] 
+            },
+            wifi: { speed: 1000, logs: [ { simple: "Checking area signal activity...", tech: "WIFI_P2P_SWEEP" }, { simple: "Peer verification active...", tech: "PEER_P2P_VOUCH" }, { simple: "70% consensus reached.", tech: "VOUCH_OK" }, { simple: "Data passing through gateway...", tech: "GATEWAY_ACTIVE" }, { simple: "Confirmed.", tech: "ACK" } ] },
+            lora: { speed: 2000, logs: [ { simple: "Long-range sweep initiated...", tech: "LORA_SWEEP" }, { simple: "Waiting for distant node verify...", tech: "WAIT_ACK" }, { simple: "Authentic report confirmed.", tech: "AUTH_TRUE" }, { simple: "Tower link active.", tech: "TOWER_LINK" }, { simple: "Dispatching.", tech: "ACK" } ] }
         };
 
         const vehicleData = {
-            'Medical': { name: "Cardiac ALS Ambulance", plate: "RJ 14 EM 2026", icon: "fa-ambulance", typeIcon: "fa-heartpulse" },
-            'Fire': { name: "Water Pumper Engine", plate: "RJ 14 FD 9912", icon: "fa-truck-field", typeIcon: "fa-fire" },
-            'Rescue': { name: "Specialized Rescue Van", plate: "RJ 14 RV 4455", icon: "fa-truck-monster", typeIcon: "fa-person-falling" }
-        };
-
-        const facilityData = {
-            'Medical': [{ name: "Fortis Memorial", dist: "1.2 km" }, { name: "Apex Health", dist: "2.8 km" }],
-            'Fire': [{ name: "Station #05", dist: "3.5 km" }, { name: "Malviya HQ", dist: "4.1 km" }],
-            'Rescue': [{ name: "SDRF Beta", dist: "2.1 km" }, { name: "Police Post", dist: "0.8 km" }]
+            'Medical': { name: "Ambulance RJ-14", plate: "EM-2026", icon: "fa-ambulance", typeIcon: "fa-heartpulse" },
+            'Fire': { name: "Fire Truck FD-09", plate: "FD-9912", icon: "fa-truck-field", typeIcon: "fa-fire" },
+            'Rescue': { name: "Rescue Unit RV-04", plate: "RV-4455", icon: "fa-truck-monster", typeIcon: "fa-person-falling" }
         };
 
         const protocols = {
-            'Medical': {
-                victim: ["Stay still", "Focus on slow breathing", "Apply pressure if bleeding"],
-                helper: ["Check responsiveness", "Clear airway", "Elevate legs if shock suspected"]
-            },
-            'Fire': {
-                victim: ["Stay low to floor", "Seal gaps under door", "Stop, Drop, Roll if needed"],
-                helper: ["Ensure safe exit route", "Help victim stay low", "Douse burns with water"]
-            },
-            'Rescue': {
-                victim: ["Conserve energy", "Tap 3 times on walls", "Cover mouth/nose"],
-                helper: ["Don't move if spinal injury", "Talk to keep conscious", "Mark exact location"]
-            }
+            'Medical': { victim: ["Stay calm", "Keep pressure on wounds"], helper: ["Check pulse", "Keep airway clear"] },
+            'Fire': { victim: ["Stay low", "Exit quickly"], helper: ["Alert neighbors", "Use extinguisher if safe"] },
+            'Rescue': { victim: ["Conserve energy", "Make noise periodically"], helper: ["Mark the area", "Keep distance for safety"] }
         };
 
         function selectProtocol(id) {
             if (isSosActive) return;
             document.querySelectorAll('.protocol-pill').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.protocol-details').forEach(d => d.classList.add('hidden'));
-            const selected = document.getElementById('pill-' + id);
-            selected.classList.add('active');
-            selected.querySelector('.protocol-details').classList.remove('hidden');
+            document.getElementById('pill-' + id).classList.add('active');
             currentProtocol = id;
-            document.getElementById('sosBtnText').innerText = protocolData[id].btn;
+            document.getElementById('sosBtnText').innerText = "INITIATE " + id.toUpperCase() + " RELAY";
         }
 
         function selectType(el, type) {
@@ -522,25 +510,47 @@
             selectedEmergency = type;
         }
 
-        function triggerSOS() {
-            isSosActive = true;
-            document.getElementById('restoreSessionCard').classList.remove('hidden');
-            document.getElementById('mainSosBtn').classList.add('opacity-50');
-            document.getElementById('mainSosBtn').disabled = true;
+        function startVoiceSOS() {
+            if (isSosActive) return;
+            isVoiceMode = true;
+            document.getElementById('voiceOverlay').style.display = 'flex';
             
-            updateResponderUI();
-
+            // Simulate 3 seconds of "listening" before auto-triggering
             setTimeout(() => {
-                goToResponder();
-                runSimulation();
-            }, 800);
+                if (isVoiceMode) {
+                    hideVoiceOverlay();
+                    triggerSOS();
+                }
+            }, 3500);
         }
 
-        function addRelayLog(msg) {
+        function cancelVoice() {
+            isVoiceMode = false;
+            hideVoiceOverlay();
+        }
+
+        function hideVoiceOverlay() {
+            document.getElementById('voiceOverlay').style.display = 'none';
+        }
+
+        function triggerSOS() {
+            isSosActive = true;
+            document.getElementById('voiceFab').style.display = 'none';
+            document.getElementById('restoreSessionCard').classList.remove('hidden');
+            document.getElementById('mainSosBtn').classList.add('opacity-50');
+            updateResponderUI();
+            setTimeout(() => { goToResponder(); runSimulation(); }, 800);
+        }
+
+        function addRelayLog(logObj) {
             const logs = document.getElementById('relayLogs');
             const item = document.createElement('div');
             item.className = 'relay-log-item';
-            item.innerHTML = `<span class="text-soft-teal">[${new Date().toLocaleTimeString([], {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'})}]</span> ${msg}`;
+            
+            let icon = 'fa-shield-check';
+            if (isVoiceMode && logObj.tech.includes('BROADCAST')) icon = 'fa-microphone-lines';
+
+            item.innerHTML = `<span class="log-simple"><i class="fas ${icon} text-soft-teal mr-2"></i> ${logObj.simple}</span><span class="log-tech">${logObj.tech}</span>`;
             logs.prepend(item);
         }
 
@@ -550,45 +560,53 @@
             document.getElementById('vehiclePlate').innerText = vInfo.plate;
             document.getElementById('vehicleIcon').className = `fas ${vInfo.icon} text-2xl text-[#4A7C77]`;
             document.getElementById('emergencyIconLarge').className = `fas ${vInfo.typeIcon} text-2xl`;
-            document.getElementById('protocolPathText').innerText = "Protocol: " + protocolData[currentProtocol].name;
-            document.getElementById('floatingStatus').innerText = "Signal: " + protocolData[currentProtocol].name;
-
-            const facContainer = document.getElementById('nearbyFacilities');
-            facContainer.innerHTML = '';
-            facilityData[selectedEmergency].forEach(f => {
-                facContainer.innerHTML += `<div class="p-2 border border-slate-200 rounded-xl text-[10px] flex justify-between"><span>${f.name}</span> <span class="text-slate-400">${f.dist}</span></div>`;
-            });
-
+            
             const prot = protocols[selectedEmergency];
             document.getElementById('victimInstructions').innerHTML = prot.victim.map(s => `<div class="action-step text-[11px]">${s}</div>`).join('');
             document.getElementById('helperInstructions').innerHTML = prot.helper.map(s => `<div class="action-step text-[11px]" style="border-color:#3B82F6">${s}</div>`).join('');
+            
+            const facContainer = document.getElementById('nearbyFacilities');
+            facContainer.innerHTML = `<div class="p-2 border border-slate-200 rounded-xl text-[10px]">Verifying nearby ${selectedEmergency} hubs...</div>`;
         }
 
         function runSimulation() {
-            if (simInterval && simInterval !== "COMPLETED") return;
-            currentHops = 0;
+            let step = 0;
             const hopIds = ['line1', 'line2', 'line3', 'line4', 'line5'];
             const nodeIds = ['node1', 'node2', 'node3', 'node4', 'node5'];
-            const logs = protocolData[currentProtocol].logs;
+            let logs = [...protocolData[currentProtocol].logs];
+
+            if (isVoiceMode) {
+                logs[0] = { simple: "Relaying voice audio via Mesh nodes...", tech: "VOICE_STREAM_BROADCAST" };
+                logs[1] = { simple: "Neighbors listening/verifying emergency audio...", tech: "AUDIO_CONSENSUS_PEER" };
+            }
 
             simInterval = setInterval(() => {
-                if (currentHops < hopIds.length) {
-                    document.getElementById(hopIds[currentHops]).classList.remove('opacity-0');
-                    document.getElementById(nodeIds[currentHops]).classList.remove('opacity-20');
-                    document.getElementById(nodeIds[currentHops]).classList.add('relay-pulse');
+                if (step < hopIds.length) {
+                    document.getElementById(hopIds[step]).classList.remove('opacity-0');
+                    document.getElementById(nodeIds[step]).classList.remove('opacity-20');
+                    document.getElementById(nodeIds[step]).classList.add('relay-pulse');
                     
-                    if (logs[currentHops]) addRelayLog(logs[currentHops]);
+                    if (logs[step]) addRelayLog(logs[step]);
                     
-                    // RSSI fluctuates as we jump nodes
-                    const rssi = -40 - Math.floor(Math.random() * 40);
-                    document.getElementById('rssiDisplay').innerText = `RSSI: ${rssi}dBm`;
-                    
-                    currentHops++;
-                    document.getElementById('hopCounter').innerText = `Hops: ${currentHops}`;
+                    if (step < 3) {
+                        trustScore += (Math.random() * 30);
+                        if (trustScore > 75 && step == 2) trustScore = 75;
+                        document.getElementById('verificationBar').style.width = trustScore + '%';
+                        document.getElementById('verificationPercent').innerText = Math.round(trustScore) + '% Verified';
+                        
+                        if (trustScore >= 70) {
+                            document.getElementById('verificationBar').classList.remove('bg-yellow-400');
+                            document.getElementById('verificationBar').classList.add('bg-green-500');
+                        }
+                    } else if (step >= 3) {
+                        trustScore = 100;
+                        document.getElementById('verificationBar').style.width = '100%';
+                        document.getElementById('verificationPercent').innerText = '100% Confirmed';
+                    }
+
+                    step++;
                 } else {
                     clearInterval(simInterval);
-                    simInterval = "COMPLETED";
-                    addRelayLog("SOS Reached Emergency Services Terminal.");
                     document.getElementById('dispatchDetails').classList.remove('hidden');
                 }
             }, protocolData[currentProtocol].speed);
@@ -606,17 +624,10 @@
             document.getElementById('activeSosBar').classList.remove('show');
         }
 
-        function terminateProcess() {
-            if (confirm("Terminate Emergency Process? This will clear all local relay data.")) location.reload();
-        }
-
+        function terminateProcess() { if (confirm("Stop relay?")) location.reload(); }
         function showContactModal() { document.getElementById('contactModal').classList.remove('hidden'); }
         function hideContactModal() { document.getElementById('contactModal').classList.add('hidden'); }
-        function handleContactSubmit(e) {
-            e.preventDefault();
-            document.getElementById('formSuccess').classList.remove('hidden');
-            setTimeout(() => hideContactModal(), 2000);
-        }
+        function handleContactSubmit(e) { e.preventDefault(); hideContactModal(); }
     </script>
 </body>
 </html>
