@@ -101,6 +101,14 @@
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #D1E8E2; border-radius: 10px; }
+
+        .ngo-card {
+            transition: all 0.3s;
+        }
+        .ngo-card:hover {
+            border-color: var(--soft-teal);
+            transform: scale(1.02);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -132,7 +140,7 @@
         <!-- SECTION 1: SOS ENTRY (USER VIEW) -->
         <div id="userSection" class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-4 gap-8 fade-in">
             
-            <!-- LEFT COLUMN: Connectivity Methods -->
+            <!-- LEFT COLUMN -->
             <div class="lg:col-span-1 space-y-4">
                 <div class="glass-card rounded-[2rem] p-5">
                     <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Relay Protocols</h3>
@@ -149,14 +157,9 @@
                             <i class="fas fa-broadcast-tower text-purple-500 text-sm"></i>
                             <span class="text-[10px] font-bold text-gray-600">LoRa (Long Range)</span>
                         </div>
-                        <div class="flex items-center space-x-3 p-2 rounded-xl bg-sage-green/10 border border-sage-green/20">
-                            <i class="fas fa-envelope-open-text text-teal-600 text-sm"></i>
-                            <span class="text-[10px] font-bold text-gray-600">DTN-Based SMS</span>
-                        </div>
                     </div>
                 </div>
 
-                <!-- User Window -->
                 <div class="glass-card rounded-[2rem] p-5 space-y-4">
                     <h3 class="text-[10px] font-black text-[#4A7C77] uppercase tracking-widest">User Details</h3>
                     <div class="space-y-2">
@@ -169,14 +172,9 @@
             <!-- MIDDLE COLUMN: SOS Action -->
             <div class="lg:col-span-3 space-y-6">
                 <div class="glass-card rounded-[3rem] p-8 md:p-10 space-y-8 relative overflow-hidden">
-                    <!-- Background Decoration -->
-                    <div class="absolute top-0 right-0 p-8 opacity-5">
-                        <i class="fas fa-satellite-dish text-[120px]"></i>
-                    </div>
-
                     <div class="text-center space-y-1">
                         <h2 class="text-3xl font-bold text-[#4A7C77]">Broadcast SOS</h2>
-                        <p class="text-gray-500 text-sm">Emergency data propagates through neighbors until it finds internet.</p>
+                        <p class="text-gray-500 text-sm">Propagate your signal through the nearest device mesh.</p>
                     </div>
 
                     <div class="grid grid-cols-3 gap-3">
@@ -194,7 +192,7 @@
                         </div>
                     </div>
 
-                    <textarea id="incidentNote" placeholder="Explain the situation..." 
+                    <textarea id="incidentNote" placeholder="Briefly describe the emergency..." 
                         class="w-full bg-gray-50 border border-sage-green rounded-2xl p-4 text-sm input-focus h-24 transition-all"></textarea>
 
                     <button type="button" onclick="triggerSOS()" 
@@ -203,131 +201,113 @@
                             <i class="fas fa-wifi text-4xl rotate-90"></i>
                             <span>INITIATE RELAY</span>
                         </span>
-                        <span id="sosSubtext" class="text-[11px] opacity-70 font-normal uppercase tracking-[0.2em]">AES-256 P2P Protocol</span>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- SECTION 2: RESPONDER DASHBOARD & VISUALIZATION -->
+        <!-- SECTION 2: RESPONDER & NGO DASHBOARD -->
         <div id="responderSection" class="w-full max-w-6xl hidden space-y-6 fade-in">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                <!-- Expanded Architecture Visualizer -->
+                <!-- Visualization & ETA -->
                 <div class="lg:col-span-2 space-y-6">
-                    <div class="glass-card rounded-[2.5rem] p-8 flex flex-col h-[550px]">
+                    <div class="glass-card rounded-[2.5rem] p-8 flex flex-col h-[450px]">
                         <div class="flex justify-between items-center mb-6">
-                            <div>
-                                <h3 class="font-bold text-[#4A7C77] text-lg">Cross-Internet Relay Visualization</h3>
-                                <p class="text-xs text-gray-400">Offline Mesh → LoRa Gateway → Internet Backbone → Responder</p>
-                            </div>
-                            <div id="hopCounter" class="bg-soft-teal text-white px-4 py-2 rounded-xl text-xs font-bold">
-                                Total Hops: 0
+                            <h3 class="font-bold text-[#4A7C77] text-lg">Relay Path Visualization</h3>
+                            <div class="flex space-x-2">
+                                <div id="hopCounter" class="bg-soft-teal text-white px-3 py-1.5 rounded-xl text-[10px] font-bold">Hops: 0</div>
+                                <div id="timerDisplay" class="bg-red-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold hidden">ETA: Calculating...</div>
                             </div>
                         </div>
 
                         <div class="bg-slate-900 rounded-3xl flex-grow relative overflow-hidden shadow-inner">
-                            <svg width="100%" height="100%" viewBox="0 0 800 450" class="absolute inset-0" id="meshSvg">
-                                <!-- ZONE 1: DISASTER AREA -->
-                                <rect x="20" y="20" width="250" height="410" rx="20" fill="rgba(230, 57, 70, 0.05)" stroke="rgba(230, 57, 70, 0.2)" stroke-dasharray="4" />
-                                <text x="40" y="45" fill="#E63946" class="text-[10px] font-black uppercase">Offline Disaster Zone</text>
+                            <svg width="100%" height="100%" viewBox="0 0 800 400" id="meshSvg">
+                                <line x1="80" y1="200" x2="160" y2="100" class="mesh-line opacity-0" id="line1" stroke-width="2" />
+                                <line x1="160" y1="100" x2="220" y2="280" class="mesh-line opacity-0" id="line2" stroke-width="2" />
+                                <line x1="220" y1="280" x2="400" y2="200" class="mesh-line opacity-0" id="line3" stroke-width="3" stroke="#9B59B6" />
+                                <line x1="400" y1="200" x2="580" y2="150" class="internet-line opacity-0" id="line4" stroke-width="2" />
+                                <line x1="580" y1="150" x2="720" y2="200" class="internet-line opacity-0" id="line5" stroke-width="2" />
                                 
-                                <!-- ZONE 2: INTERNET -->
-                                <rect x="530" y="20" width="250" height="410" rx="20" fill="rgba(58, 134, 255, 0.05)" stroke="rgba(58, 134, 255, 0.2)" stroke-dasharray="4" />
-                                <text x="550" y="45" fill="#3A86FF" class="text-[10px] font-black uppercase">Internet / Cloud</text>
-
-                                <!-- RELAY LINES -->
-                                <!-- Local Mesh -->
-                                <line x1="80" y1="225" x2="160" y2="120" class="mesh-line opacity-0" id="line1" stroke-width="2" />
-                                <line x1="160" y1="120" x2="220" y2="280" class="mesh-line opacity-0" id="line2" stroke-width="2" />
-                                <!-- LoRa / Bridge -->
-                                <line x1="220" y1="280" x2="400" y2="225" class="mesh-line opacity-0" id="line3" stroke-width="3" stroke="#9B59B6" />
-                                <!-- Internet Hops -->
-                                <line x1="400" y1="225" x2="580" y2="150" class="internet-line opacity-0" id="line4" stroke-width="2" />
-                                <line x1="580" y1="150" x2="720" y2="225" class="internet-line opacity-0" id="line5" stroke-width="2" />
-                                
-                                <!-- NODES -->
-                                <g>
-                                    <circle cx="80" cy="225" r="10" fill="#E63946" class="node-active" id="sourceNode" />
-                                    <text x="60" y="250" fill="white" class="text-[9px]">Sender</text>
-                                </g>
-                                <g>
-                                    <circle cx="160" cy="120" r="8" fill="#4A7C77" id="node1" class="opacity-20" />
-                                    <text x="140" y="105" fill="#4A7C77" class="text-[8px]">BLE Peer</text>
-                                </g>
-                                <g>
-                                    <circle cx="220" cy="280" r="8" fill="#4A7C77" id="node2" class="opacity-20" />
-                                    <text x="200" y="305" fill="#4A7C77" class="text-[8px]">WiFi Peer</text>
-                                </g>
-                                <g>
-                                    <circle cx="400" cy="225" r="14" fill="#9B59B6" id="node3" class="opacity-20" />
-                                    <text x="375" y="255" fill="#9B59B6" class="text-[10px] font-black uppercase">LoRa Gateway</text>
-                                </g>
-                                <g>
-                                    <circle cx="580" cy="150" r="8" fill="#3A86FF" id="node4" class="opacity-20" />
-                                    <text x="560" y="135" fill="#3A86FF" class="text-[8px]">ISP Server</text>
-                                </g>
-                                <g>
-                                    <circle cx="720" cy="225" r="14" fill="#2ECC71" id="node5" class="opacity-20" />
-                                    <text x="680" y="255" fill="#2ECC71" class="text-[10px] font-black uppercase">Responder</text>
-                                </g>
+                                <circle cx="80" cy="200" r="10" fill="#E63946" class="node-active" />
+                                <circle cx="160" cy="100" r="8" fill="#4A7C77" id="node1" class="opacity-20" />
+                                <circle cx="220" cy="280" r="8" fill="#4A7C77" id="node2" class="opacity-20" />
+                                <circle cx="400" cy="200" r="14" fill="#9B59B6" id="node3" class="opacity-20" />
+                                <circle cx="580" cy="150" r="8" fill="#3A86FF" id="node4" class="opacity-20" />
+                                <circle cx="720" cy="200" r="14" fill="#2ECC71" id="node5" class="opacity-20" />
                             </svg>
                         </div>
                     </div>
 
-                    <div class="glass-card rounded-[2rem] p-6 h-[200px] overflow-hidden flex flex-col">
-                        <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Transmission History</h4>
-                        <div id="relayLog" class="space-y-2 overflow-y-auto flex-grow pr-2 custom-scrollbar text-[10px]">
+                    <div id="etaSection" class="glass-card rounded-[2rem] p-8 border-t-4 border-red-500 hidden fade-in">
+                        <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div class="flex items-center space-x-6">
+                                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-600">
+                                    <i class="fas fa-clock text-3xl"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-[10px] font-black text-gray-400 uppercase">Est. Response Time</h4>
+                                    <div class="flex items-baseline space-x-1">
+                                        <span id="etaValue" class="text-4xl font-black text-red-600">--</span>
+                                        <span class="text-xs font-bold text-red-600">Mins</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex-grow max-w-xs">
+                                <div class="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+                                    <div id="etaProgress" class="h-full bg-red-500 transition-all duration-1000" style="width: 0%"></div>
+                                </div>
+                                <p class="text-[9px] text-center font-bold text-gray-400">EN-ROUTE TO YOUR LAST KNOWN COORDINATES</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Triage & Info -->
+                <!-- Right Column: NGOs and AI -->
                 <div class="space-y-6">
-                    <div class="glass-card rounded-[2rem] p-6 border-l-8 border-soft-teal">
-                        <h3 class="font-bold text-[#4A7C77] mb-4">AI Analysis</h3>
-                        <div id="aiSummary" class="text-xs text-gray-600 leading-relaxed">
-                            Awaiting packet delivery...
+                    <div class="glass-card rounded-[2rem] p-6">
+                        <h3 class="font-bold text-[#4A7C77] text-sm mb-4 flex items-center">
+                            <i class="fas fa-hand-holding-heart mr-2"></i> Nearest NGO Responders
+                        </h3>
+                        <div id="ngoList" class="space-y-3">
+                            <div class="ngo-card p-3 rounded-xl border border-sage-green bg-white/50 text-[11px]">
+                                <div class="flex justify-between font-bold text-gray-800">
+                                    <span>Red Cross (Jaipur)</span>
+                                    <span class="text-green-500 text-[9px]"><i class="fas fa-circle animate-pulse mr-1"></i>Active</span>
+                                </div>
+                                <p class="text-gray-500 text-[10px] mt-1">Specialty: First Aid & Triage</p>
+                                <div class="mt-2 pt-2 border-t border-dashed border-sage-green flex justify-between">
+                                    <span class="font-mono text-soft-teal">1800-419-1234</span>
+                                    <button class="px-2 py-1 bg-soft-teal text-white rounded text-[9px]">Contact</button>
+                                </div>
+                            </div>
+                            <div class="ngo-card p-3 rounded-xl border border-sage-green bg-white/50 text-[11px]">
+                                <div class="flex justify-between font-bold text-gray-800">
+                                    <span>NGO-RAHAT</span>
+                                    <span class="text-green-500 text-[9px]"><i class="fas fa-circle animate-pulse mr-1"></i>Active</span>
+                                </div>
+                                <p class="text-gray-500 text-[10px] mt-1">Specialty: Search & Rescue</p>
+                                <div class="mt-2 pt-2 border-t border-dashed border-sage-green flex justify-between">
+                                    <span class="font-mono text-soft-teal">+91 98290-XXXXX</span>
+                                    <button class="px-2 py-1 bg-soft-teal text-white rounded text-[9px]">Contact</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-800 p-6 rounded-[2rem] text-white">
-                        <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Active Connection List</h4>
-                        <ul class="text-[10px] space-y-2 text-gray-400 font-mono">
-                            <li>1. <span class="text-teal-400">BLE MESH</span> (Short range/Peer)</li>
-                            <li>2. <span class="text-orange-400">WIFI DIRECT</span> (Medium range/Peer)</li>
-                            <li>3. <span class="text-purple-400">LORA</span> (10km+ Gateways)</li>
-                            <li>4. <span class="text-blue-400">TCP/IP</span> (Backbone Internet)</li>
-                            <li>5. <span class="text-pink-400">DTN SMS</span> (Store & Forward)</li>
-                        </ul>
+                    <div class="glass-card rounded-[2rem] p-6 border-l-8 border-soft-teal">
+                        <h3 class="font-bold text-[#4A7C77] text-sm mb-3">AI Incident Summary</h3>
+                        <div id="aiSummary" class="text-[11px] text-gray-600 leading-relaxed">
+                            Awaiting signal acquisition...
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <footer class="p-10 bg-white border-t border-sage-green mt-10">
-        <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="space-y-4">
-                <h4 class="text-xs font-black text-[#4A7C77] uppercase tracking-widest">Connect with Us</h4>
-                <div class="text-[11px] text-gray-500 space-y-1">
-                    <p><i class="fas fa-envelope mr-2"></i> help@solace.org</p>
-                    <p><i class="fas fa-phone-alt mr-2"></i> +91 1800-SOLACE</p>
-                    <p><i class="fas fa-map-marker-alt mr-2"></i> Jaipur, Rajasthan, India</p>
-                </div>
-            </div>
-            <div class="md:text-center space-y-4">
-                <h4 class="text-xs font-black text-[#4A7C77] uppercase tracking-widest">Innovation Team</h4>
-                <div class="text-[11px] text-gray-500 font-bold space-y-1">
-                    <p>Tanveen Kaur • Jiya Min</p>
-                    <p>Mahima Agrawal • Pankhuri Agarwal</p>
-                </div>
-            </div>
-            <div class="md:text-right">
-                <p class="text-[10px] text-gray-400 font-medium">© 2026 SOLACE | PS-05</p>
-                <p class="text-[9px] text-gray-300 mt-2">DECENTRALIZED COMMUNICATION PROTOCOL</p>
-            </div>
-        </div>
+    <footer class="p-8 bg-white border-t border-sage-green mt-10 text-center">
+        <p class="text-[10px] text-gray-400 font-medium">© 2026 SOLACE | Team: Tanveen, Jiya, Mahima, Pankhuri</p>
     </footer>
 
     <script>
@@ -340,82 +320,56 @@
         }
 
         function triggerSOS() {
-            const name = document.getElementById('userName').value || "Anonymous";
-            const note = document.getElementById('incidentNote').value;
             const btn = document.querySelector('.sos-button');
-            
             btn.classList.add('opacity-50');
             btn.disabled = true;
-            document.getElementById('sosSubtext').innerText = "Broadcasting to Peers...";
-
+            
             setTimeout(() => {
                 document.getElementById('userSection').classList.add('hidden');
                 document.getElementById('responderSection').classList.remove('hidden');
-                runAdvancedMeshSimulation(selectedEmergency, note, name);
-            }, 1200);
+                runSimulation();
+            }, 800);
         }
 
-        function addLog(msg, color="text-gray-500") {
-            const log = document.getElementById('relayLog');
-            const time = new Date().toLocaleTimeString();
-            const div = document.createElement('div');
-            div.className = "log-entry p-2 bg-slate-50 border-l-2 mb-2 flex justify-between";
-            div.innerHTML = `<span class="${color}">${msg}</span><span class="text-[8px] opacity-40">${time}</span>`;
-            log.prepend(div);
-        }
-
-        function runAdvancedMeshSimulation(type, note, name) {
+        function runSimulation() {
             const hopIds = ['line1', 'line2', 'line3', 'line4', 'line5'];
             const nodeIds = ['node1', 'node2', 'node3', 'node4', 'node5'];
-            const labels = [
-                "BLE Peer (Local Neighborhood)",
-                "WiFi Direct Node (Building Edge)",
-                "LoRa Base Station (City Gateway)",
-                "National ISP Backbone (Internet)",
-                "Emergency Dispatch Server (Cloud)"
-            ];
-            const colors = ["text-teal-600", "text-orange-600", "text-purple-600", "text-blue-600", "text-green-600"];
-            
             let currentHop = 0;
-            addLog(`INITIALIZING SOS: Payload signed by ${name}`, "text-red-500 font-bold");
 
             const interval = setInterval(() => {
                 if (currentHop < hopIds.length) {
-                    const line = document.getElementById(hopIds[currentHop]);
+                    document.getElementById(hopIds[currentHop]).classList.remove('opacity-0');
                     const node = document.getElementById(nodeIds[currentHop]);
-                    
-                    line.classList.remove('opacity-0');
                     node.classList.remove('opacity-20');
                     node.classList.add('relay-pulse');
-                    
-                    addLog(`Hop ${currentHop + 1}: Relayed via ${labels[currentHop]}`, colors[currentHop]);
-                    
                     currentHop++;
-                    document.getElementById('hopCounter').innerText = `Total Hops: ${currentHop}`;
+                    document.getElementById('hopCounter').innerText = `Hops: ${currentHop}`;
                 } else {
                     clearInterval(interval);
-                    triggerFinalAI(type, note, name);
+                    showFinalStatus();
                 }
-            }, 1500);
+            }, 1000);
         }
 
-        function triggerFinalAI(type, note, name) {
-            const aiBox = document.getElementById('aiSummary');
-            aiBox.innerHTML = `
-                <div class="space-y-3">
-                    <div class="flex items-center space-x-2">
-                        <span class="px-2 py-0.5 bg-red-100 text-red-600 text-[9px] font-black rounded uppercase">Critical Alert</span>
-                        <span class="text-[9px] text-gray-400 font-bold uppercase">Internet Reached</span>
-                    </div>
-                    <p class="font-bold text-gray-800">Sender: ${name}</p>
-                    <p class="text-gray-600"><strong>Summary:</strong> High-priority ${type} alert. The signal traveled 3 offline hops before hitting the LoRa gateway and routing through the internet.</p>
-                    <div class="p-2 bg-gray-50 border border-gray-100 rounded text-italic">
-                        "${note || 'No additional notes provided.'}"
-                    </div>
-                    <button class="w-full py-2 bg-red-500 text-white text-[10px] font-black rounded-lg mt-2">ACKNOWLEDGE & DEPLOY</button>
+        function showFinalStatus() {
+            const eta = selectedEmergency === 'Medical' ? 12 : (selectedEmergency === 'Fire' ? 8 : 25);
+            document.getElementById('timerDisplay').classList.remove('hidden');
+            document.getElementById('timerDisplay').innerText = `ETA: ~${eta}m`;
+            
+            document.getElementById('etaSection').classList.remove('hidden');
+            document.getElementById('etaValue').innerText = eta;
+            
+            setTimeout(() => {
+                document.getElementById('etaProgress').style.width = '40%';
+            }, 100);
+
+            document.getElementById('aiSummary').innerHTML = `
+                <div class='space-y-2'>
+                    <p><strong>Priority:</strong> <span class='text-red-600'>CRITICAL</span></p>
+                    <p><strong>Signal Route:</strong> 3 Offline Hops (BLE/LoRa) + 2 Internet Hops.</p>
+                    <p><strong>Response:</strong> Nearest NGO <em>(Red Cross)</em> alerted. Dispatch initiated from base station 4B.</p>
                 </div>
             `;
-            addLog("SUCCESS: Data delivered to target responder.", "text-green-600 font-black");
         }
     </script>
 </body>
