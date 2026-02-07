@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solace - Offline Emergency Network</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --sage-green: #D1E8E2;
+            --soft-teal: #4A7C77;
+            --off-white: #F9FBFA;
+            --accent-teal: #365c58;
+        }
+
+        body {
+            background-color: var(--off-white);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(209, 232, 226, 0.6);
+            box-shadow: 0 10px 40px -10px rgba(74, 124, 119, 0.15);
+        }
+
+        .sos-button {
+            background-color: var(--soft-teal);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .sos-button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(74, 124, 119, 0.3); }
+
+        .pulse { animation: pulse-animation 2s infinite; }
+        @keyframes pulse-animation {
+            0% { box-shadow: 0 0 0 0px rgba(74, 124, 119, 0.4); }
+            100% { box-shadow: 0 0 0 20px rgba(74, 124, 119, 0); }
+        }
+
+        .mesh-line {
+            stroke: var(--soft-teal);
+            stroke-dasharray: 5;
+            animation: dash 3s linear infinite;
+        }
+        @keyframes dash { to { stroke-dashoffset: -50; } }
+
+        .node-active { animation: blink 1.5s ease-in-out infinite alternate; }
+        @keyframes blink { from { opacity: 0.4; transform: scale(0.9); } to { opacity: 1; transform: scale(1.1); } }
+
+        .ai-panel { border-left: 4px solid #4A7C77; background: linear-gradient(to right, #f0f7f6, transparent); }
+
+        /* Custom Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--soft-teal); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        .fade-in { animation: fadeIn 0.6s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="p-6 flex flex-wrap justify-between items-center bg-white/60 border-b border-sage-green sticky top-0 z-50">
+        <div class="flex items-center space-x-2">
+            <div class="w-10 h-10 bg-[#4A7C77] rounded-xl flex items-center justify-center text-white shadow-md">
+                <i class="fas fa-feather-pointed"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-[#4A7C77]">SOLACE</h1>
+                <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Emergency Mesh Network</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center space-x-4 mt-4 sm:mt-0">
+            <div class="px-4 py-2 rounded-full bg-[#D1E8E2]/50 flex items-center border border-[#4A7C77]/20">
+                <span class="h-2 w-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                <span class="text-xs font-bold text-[#4A7C77]">Mesh: Active</span>
+            </div>
+            <div class="text-xs text-gray-500 hidden md:block">
+                <i class="fas fa-shield-virus mr-1"></i> AES-256 Enabled
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow p-4 md:p-8 flex flex-col items-center">
+        
+        <!-- SECTION 1: SOS ENTRY (USER VIEW) -->
+        <div id="userSection" class="w-full max-w-md space-y-8 fade-in">
+            <div class="glass-card rounded-[2.5rem] p-8 space-y-8 mt-4 md:mt-10">
+                <div class="text-center">
+                    <h2 class="text-xl font-bold text-[#4A7C77]">Emergency Assistance</h2>
+                    <p class="text-gray-500 text-sm mt-2">Offline signaling activated.</p>
+                </div>
+
+                <form id="sosForm" class="space-y-6">
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-gray-400 uppercase ml-1">Responder ID / Name</label>
+                        <input type="text" id="userId" placeholder="Anonymous User" 
+                            class="w-full px-5 py-4 rounded-2xl border-2 border-sage-green focus:border-soft-teal outline-none transition-all bg-white/50 text-gray-700">
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-gray-400 uppercase ml-1">Type of Emergency</label>
+                        <select id="emergencyType" class="w-full px-5 py-4 rounded-2xl border-2 border-sage-green focus:border-soft-teal outline-none transition-all bg-white/50 appearance-none text-gray-700">
+                            <option value="Medical Assistance">Medical Emergency</option>
+                            <option value="Fire Outbreak">Fire / Smoke</option>
+                            <option value="Rescue/Accident">Accident / Physical Rescue</option>
+                        </select>
+                    </div>
+
+                    <div class="p-4 bg-teal-50/50 rounded-2xl border border-soft-teal/20 text-[11px] text-gray-600">
+                        <i class="fas fa-lock text-soft-teal mr-1"></i> 
+                        Encryption Layer: $E_{k}(Location + Time + ID)$ via AES-256. 
+                        Data is fragmented and distributed across the mesh nodes.
+                    </div>
+
+                    <button type="button" onclick="triggerSOS()" 
+                        class="sos-button w-full py-5 rounded-3xl text-white font-black text-lg flex items-center justify-center space-x-3 pulse">
+                        <i class="fas fa-satellite-dish"></i>
+                        <span>SEND SOS</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- SECTION 2: RESPONDER DASHBOARD (HIDDEN UNTIL SOS SENT) -->
+        <div id="responderSection" class="w-full max-w-5xl hidden space-y-6 fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Left: Mesh Map -->
+                <div class="lg:col-span-2 glass-card rounded-3xl p-6 flex flex-col">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-[#4A7C77] flex items-center">
+                            <i class="fas fa-project-diagram mr-2"></i> Live Mesh Map
+                        </h3>
+                        <div class="flex space-x-4">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-[10px] font-bold text-gray-500 uppercase">BT Mesh</span>
+                                <label class="switch">
+                                    <input type="checkbox" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-[10px] font-bold text-gray-500 uppercase">Wi-Fi Direct</span>
+                                <label class="switch">
+                                    <input type="checkbox">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SVG Mesh Visualizer -->
+                    <div class="bg-[#f0f4f3] rounded-2xl flex-grow h-[350px] relative overflow-hidden border border-sage-green/50">
+                        <svg width="100%" height="100%" viewBox="0 0 400 300" class="absolute inset-0">
+                            <!-- Connections -->
+                            <line x1="50" y1="150" x2="150" y2="80" class="mesh-line" stroke-width="2" />
+                            <line x1="150" y1="80" x2="250" y2="220" class="mesh-line" stroke-width="2" />
+                            <line x1="250" y1="220" x2="350" y2="150" class="mesh-line" stroke-width="2" />
+                            
+                            <!-- Nodes -->
+                            <!-- User Node -->
+                            <circle cx="50" cy="150" r="8" fill="#4A7C77" class="node-active" />
+                            <text x="35" y="175" class="text-[10px] font-bold fill-[#4A7C77]">USER</text>
+                            
+                            <!-- Hop 1 -->
+                            <circle cx="150" cy="80" r="6" fill="#A0C4C1" />
+                            <text x="130" y="70" class="text-[10px] fill-gray-400">Node_A7</text>
+                            
+                            <!-- Hop 2 -->
+                            <circle cx="250" cy="220" r="6" fill="#A0C4C1" />
+                            <text x="235" y="240" class="text-[10px] fill-gray-400">Node_B2</text>
+                            
+                            <!-- Responder -->
+                            <circle cx="350" cy="150" r="10" fill="#E63946" class="node-active" />
+                            <text x="325" y="180" class="text-[10px] font-bold fill-[#E63946]">RESPONDER</text>
+                        </svg>
+                        
+                        <div class="absolute bottom-4 left-4 bg-white/80 p-3 rounded-xl border border-sage-green text-[11px]">
+                            <p><strong>Latency:</strong> 42ms (3 Hops)</p>
+                            <p><strong>Signal Strength:</strong> -64dBm</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Gemini AI Intelligence -->
+                <div class="space-y-6">
+                    <div class="glass-card rounded-3xl p-6 ai-panel">
+                        <div class="flex items-center space-x-2 mb-4">
+                            <div class="p-2 bg-soft-teal/10 rounded-lg text-soft-teal">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <h3 class="font-bold text-[#4A7C77]">Gemini AI Summary</h3>
+                        </div>
+                        <div id="aiSummary" class="text-sm text-gray-600 leading-relaxed space-y-3">
+                            <p class="italic text-gray-400">Analyzing encrypted packet stream...</p>
+                        </div>
+                    </div>
+
+                    <div class="glass-card rounded-3xl p-6">
+                        <h3 class="font-bold text-gray-700 text-sm mb-4">Packet Metadata</h3>
+                        <div class="space-y-3 text-[11px] font-mono text-gray-500">
+                            <div class="flex justify-between border-b pb-1">
+                                <span>Payload ID:</span>
+                                <span class="text-soft-teal">#SL-992-X</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1">
+                                <span>Coordinates:</span>
+                                <span class="text-soft-teal">26.9124°N, 75.7873°E</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1">
+                                <span>Timestamp:</span>
+                                <span class="text-soft-teal">11:07:42 AM IST</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Security:</span>
+                                <span class="text-green-600">AES-GCM VERIFIED</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button onclick="window.location.reload()" class="w-full py-4 text-gray-400 text-sm hover:text-soft-teal transition-colors">
+                <i class="fas fa-redo mr-2"></i> Reset for New Simulation
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Project Footer -->
+    <footer class="p-10 bg-white/40 border-t border-sage-green mt-10">
+        <div class="max-w-6xl mx-auto flex flex-col items-center">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10 text-center">
+                <div>
+                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Our Stack</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>Flutter (Mobile)</li>
+                        <li>FastAPI / MongoDB</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Protocol</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>Bluetooth Mesh</li>
+                        <li>Wi-Fi Direct P2P</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Security</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>AES-256 GCM</li>
+                        <li>Diffie-Hellman Key</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Intelligence</h4>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>Gemini Flash API</li>
+                        <li>Emergency Triage</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="w-full h-px bg-sage-green mb-6"></div>
+            <p class="text-[11px] text-gray-400 font-medium">© 2026 Solace Team | Problem Statement 05 | Disaster Management Network</p>
+        </div>
+    </footer>
+
+    <script>
+        function triggerSOS() {
+            const userId = document.getElementById('userId').value || "Anonymous User";
+            const eType = document.getElementById('emergencyType').value;
+            const btn = document.querySelector('.sos-button');
+            
+            // Interaction Feedback
+            btn.innerHTML = '<span>ENCRYPTING & BROADCASTING...</span>';
+            btn.classList.add('opacity-50');
+            btn.disabled = true;
+
+            setTimeout(() => {
+                document.getElementById('userSection').classList.add('hidden');
+                document.getElementById('responderSection').classList.remove('hidden');
+                simulateAIResponse(userId, eType);
+            }, 2000);
+        }
+
+        function simulateAIResponse(user, type) {
+            const summaryBox = document.getElementById('aiSummary');
+            const summaryText = `
+                <div class="p-3 bg-white rounded-xl shadow-sm border border-sage-green">
+                    <span class="block font-bold text-soft-teal mb-1">Incident Report:</span>
+                    Priority 1 alert received from <strong>${user}</strong> via Mesh Hop 3. 
+                    Categorized as <strong>${type}</strong>. 
+                    AI Recommendation: Immediate dispatch of nearest ${type.toLowerCase().includes('medical') ? 'Ambulance' : 'Response Team'} to GPS sector 7B.
+                </div>
+                <div class="flex items-center space-x-2 px-2">
+                    <i class="fas fa-check-double text-green-500 text-xs"></i>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase">Responder Notified</span>
+                </div>
+            `;
+            
+            setTimeout(() => {
+                summaryBox.innerHTML = summaryText;
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
