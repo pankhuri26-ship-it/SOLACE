@@ -182,6 +182,18 @@
             linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
             background-size: 20px 20px;
         }
+
+        .user-field {
+            font-size: 0.75rem;
+            background: transparent;
+            border-bottom: 1px solid var(--sage-green);
+            padding: 2px 0;
+            width: 100%;
+        }
+        .user-field:focus {
+            outline: none;
+            border-color: var(--soft-teal);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -274,9 +286,39 @@
     <main class="flex-grow p-4 md:p-8 flex flex-col items-center">
         
         <!-- SECTION 1: SOS ENTRY (USER VIEW) -->
-        <div id="userSection" class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-4 gap-8 fade-in">
+        <div id="userSection" class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-6 fade-in">
             
-            <div class="lg:col-span-1 space-y-4">
+            <!-- Left Column: User Info & Protocol Selection -->
+            <div class="lg:col-span-3 space-y-4">
+                <!-- User Information Card -->
+                <div class="glass-card rounded-[2rem] p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Medical Profile</h3>
+                        <i class="fas fa-user-shield text-soft-teal opacity-50"></i>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="space-y-1">
+                            <label class="text-[9px] font-bold text-soft-teal uppercase">Full Name</label>
+                            <input type="text" id="userName" placeholder="Optional" class="user-field" value="Alex Johnson">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <label class="text-[9px] font-bold text-soft-teal uppercase">Blood Type</label>
+                                <input type="text" id="userBlood" placeholder="e.g. O+" class="user-field" value="A+">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[9px] font-bold text-soft-teal uppercase">Allergies</label>
+                                <input type="text" id="userAllergies" placeholder="None" class="user-field" value="Penicillin">
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[9px] font-bold text-soft-teal uppercase">Emergency Contact</label>
+                            <input type="text" id="userContact" placeholder="Phone Number" class="user-field" value="+1 555-0199">
+                        </div>
+                        <p class="text-[8px] text-gray-400 italic">This data is encrypted locally and only shared during a broadcast SOS.</p>
+                    </div>
+                </div>
+
                 <div id="restoreSessionCard" class="hidden glass-card rounded-[2rem] p-5 border-2 border-soft-teal animate-pulse">
                     <h3 class="text-[10px] font-black text-soft-teal uppercase tracking-widest mb-2">Process Running</h3>
                     <button onclick="goToResponder()" class="w-full bg-soft-teal text-white py-3 rounded-xl text-[11px] font-black uppercase">
@@ -309,7 +351,8 @@
                 </div>
             </div>
 
-            <div class="lg:col-span-3 space-y-6">
+            <!-- Right Column: Broadcast Controls -->
+            <div class="lg:col-span-9 space-y-6">
                 <div class="glass-card rounded-[3rem] p-8 md:p-10 space-y-8 relative overflow-hidden">
                     <div class="text-center space-y-1">
                         <h2 class="text-3xl font-bold text-[#4A7C77]">Broadcast SOS</h2>
@@ -331,7 +374,7 @@
                         </div>
                     </div>
 
-                    <textarea id="incidentNote" placeholder="Specific location or symptoms..." 
+                    <textarea id="incidentNote" placeholder="Specific location details or symptoms..." 
                         class="w-full bg-gray-50 border border-sage-green rounded-2xl p-4 text-sm input-focus h-24 transition-all"></textarea>
 
                     <button type="button" onclick="triggerSOS()" id="mainSosBtn"
@@ -394,6 +437,7 @@
                                 <line x1="580" y1="150" x2="720" y2="200" class="internet-line opacity-0" id="line5" stroke-width="2" />
                                 
                                 <circle cx="80" cy="200" r="12" fill="#E63946" class="node-active" />
+                                <circle cx="80" cy="200" r="18" fill="transparent" stroke="#E63946" stroke-width="1" class="animate-ping" />
                                 <text x="80" y="235" class="node-label">SENDER</text>
 
                                 <circle cx="160" cy="100" r="10" fill="#4A7C77" id="node1" class="opacity-20" />
@@ -641,24 +685,38 @@
             const nodeIds = ['node1', 'node2', 'node3', 'node4', 'node5'];
             let logs = [...protocolData[currentProtocol].logs];
 
+            // Get user data
+            const userName = document.getElementById('userName').value || "Anonymous";
+            const userBlood = document.getElementById('userBlood').value || "Unknown";
+
+            // Prepend User Meta Packet
+            logs.unshift({ simple: `Broadcasting metadata: ${userName} (${userBlood})`, tech: "ENCRYPTED_META_PACKET_LOAD" });
+
             if (isVoiceMode) {
-                logs[0] = { simple: `Analyzed Voice Packet. Stress Level: ${finalStressLevel}.`, tech: "BIO_METRIC_PACKET_APPENDED" };
-                logs[1] = { simple: "Neighbors listening/verifying emergency audio...", tech: "AUDIO_CONSENSUS_PEER" };
+                logs.splice(1, 0, { simple: `Analyzed Voice Packet. Stress Level: ${finalStressLevel}.`, tech: "BIO_METRIC_PACKET_APPENDED" });
+                logs.splice(2, 0, { simple: "Neighbors listening/verifying emergency audio...", tech: "AUDIO_CONSENSUS_PEER" });
             }
 
             simInterval = setInterval(() => {
-                if (step < hopIds.length) {
-                    document.getElementById(hopIds[step]).classList.remove('opacity-0');
-                    document.getElementById(nodeIds[step]).classList.remove('opacity-20');
-                    document.getElementById(nodeIds[step]).classList.add('relay-pulse');
+                if (step < hopIds.length || (logs.length > hopIds.length && step < logs.length)) {
+                    // Logic to ensure visuals sync even if logs are longer
+                    const visualStep = Math.min(step, hopIds.length - 1);
+                    
+                    if (step < hopIds.length) {
+                        document.getElementById(hopIds[visualStep]).classList.remove('opacity-0');
+                        document.getElementById(nodeIds[visualStep]).classList.remove('opacity-20');
+                        document.getElementById(nodeIds[visualStep]).classList.add('relay-pulse');
+                    }
+                    
                     if (logs[step]) addRelayLog(logs[step]);
                     
+                    // Score calculation
                     if (step < 3) {
-                        trustScore += (Math.random() * 30);
-                        if (trustScore > 75 && step == 2) trustScore = 75;
+                        trustScore += (Math.random() * 20);
+                        if (trustScore > 75) trustScore = 75;
                         document.getElementById('verificationBar').style.width = trustScore + '%';
                         document.getElementById('verificationPercent').innerText = Math.round(trustScore) + '% Verified';
-                    } else if (step >= 3) {
+                    } else if (step >= logs.length - 2) {
                         trustScore = 96 + Math.floor(Math.random() * 3);
                         document.getElementById('verificationBar').style.width = trustScore + '%';
                         document.getElementById('verificationPercent').innerText = trustScore + '% Confirmed';
@@ -693,7 +751,10 @@
             const item = document.createElement('div');
             item.className = 'relay-log-item';
             let icon = 'fa-shield-check';
-            if (isVoiceMode && logObj.tech.includes('BROADCAST')) icon = 'fa-microphone-lines';
+            if (logObj.tech.includes('META')) icon = 'fa-user-tag';
+            if (isVoiceMode && logObj.tech.includes('BIO_METRIC')) icon = 'fa-wave-square';
+            if (isVoiceMode && logObj.tech.includes('AUDIO')) icon = 'fa-microphone-lines';
+            
             item.innerHTML = `<span class="log-simple"><i class="fas ${icon} text-soft-teal mr-2"></i> ${logObj.simple}</span><span class="log-tech">${logObj.tech}</span>`;
             logs.prepend(item);
         }
