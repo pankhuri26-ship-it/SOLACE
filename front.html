@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solace - Offline Emergency Network</title>
+    <title>Solace - PS 05: Offline Emergency Network</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -12,6 +12,8 @@
             --soft-teal: #4A7C77;
             --off-white: #F9FBFA;
             --accent-teal: #365c58;
+            --emergency-red: #E63946;
+            --internet-blue: #3A86FF;
         }
 
         body {
@@ -31,61 +33,96 @@
         .sos-button {
             background-color: var(--soft-teal);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
         }
 
-        .sos-button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(74, 124, 119, 0.3); }
+        .sos-button:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(74, 124, 119, 0.4); }
 
         .pulse { animation: pulse-animation 2s infinite; }
         @keyframes pulse-animation {
             0% { box-shadow: 0 0 0 0px rgba(74, 124, 119, 0.4); }
-            100% { box-shadow: 0 0 0 20px rgba(74, 124, 119, 0); }
+            100% { box-shadow: 0 0 0 30px rgba(74, 124, 119, 0); }
         }
 
         .mesh-line {
             stroke: var(--soft-teal);
             stroke-dasharray: 5;
+            transition: opacity 0.5s ease;
             animation: dash 3s linear infinite;
         }
+        
+        .internet-line {
+            stroke: var(--internet-blue);
+            stroke-dasharray: 3;
+            animation: dash 1.5s linear infinite;
+        }
+
         @keyframes dash { to { stroke-dashoffset: -50; } }
 
         .node-active { animation: blink 1.5s ease-in-out infinite alternate; }
         @keyframes blink { from { opacity: 0.4; transform: scale(0.9); } to { opacity: 1; transform: scale(1.1); } }
 
-        .ai-panel { border-left: 4px solid #4A7C77; background: linear-gradient(to right, #f0f7f6, transparent); }
-
-        /* Custom Toggle Switch */
-        .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--soft-teal); }
-        input:checked + .slider:before { transform: translateX(22px); }
+        .relay-pulse { animation: relay-hit 0.8s ease-out; }
+        @keyframes relay-hit {
+            0% { r: 8; fill: #4A7C77; }
+            50% { r: 18; fill: #D1E8E2; }
+            100% { r: 10; fill: #4A7C77; }
+        }
 
         .fade-in { animation: fadeIn 0.6s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .input-focus:focus {
+            outline: none;
+            border-color: var(--soft-teal);
+            background-color: white;
+            box-shadow: 0 0 0 4px rgba(74, 124, 119, 0.1);
+        }
+
+        .emergency-pill {
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #D1E8E2;
+        }
+
+        .emergency-pill.active {
+            background-color: var(--soft-teal);
+            color: white;
+            border-color: var(--soft-teal);
+        }
+
+        .log-entry {
+            border-left: 2px solid var(--soft-teal);
+            animation: slideInLeft 0.3s ease-out;
+        }
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D1E8E2; border-radius: 10px; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
     <!-- Header -->
     <header class="p-6 flex flex-wrap justify-between items-center bg-white/60 border-b border-sage-green sticky top-0 z-50">
-        <div class="flex items-center space-x-2">
-            <div class="w-10 h-10 bg-[#4A7C77] rounded-xl flex items-center justify-center text-white shadow-md">
-                <i class="fas fa-feather-pointed"></i>
+        <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 bg-[#4A7C77] rounded-2xl flex items-center justify-center text-white shadow-lg">
+                <i class="fas fa-feather-pointed text-xl"></i>
             </div>
             <div>
-                <h1 class="text-2xl font-bold tracking-tight text-[#4A7C77]">SOLACE</h1>
-                <p class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Emergency Mesh Network</p>
+                <h1 class="text-2xl font-black tracking-tight text-[#4A7C77]">SOLACE</h1>
+                <div class="flex items-center space-x-2">
+                    <span class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">PS-05: Emergency Mesh Architecture</span>
+                </div>
             </div>
         </div>
         
         <div class="flex items-center space-x-4 mt-4 sm:mt-0">
             <div class="px-4 py-2 rounded-full bg-[#D1E8E2]/50 flex items-center border border-[#4A7C77]/20">
                 <span class="h-2 w-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                <span class="text-xs font-bold text-[#4A7C77]">Mesh: Active</span>
-            </div>
-            <div class="text-xs text-gray-500 hidden md:block">
-                <i class="fas fa-shield-virus mr-1"></i> AES-256 Enabled
+                <span class="text-xs font-bold text-[#4A7C77]">Network Status: Offline-Ready</span>
             </div>
         </div>
     </header>
@@ -93,224 +130,292 @@
     <main class="flex-grow p-4 md:p-8 flex flex-col items-center">
         
         <!-- SECTION 1: SOS ENTRY (USER VIEW) -->
-        <div id="userSection" class="w-full max-w-md space-y-8 fade-in">
-            <div class="glass-card rounded-[2.5rem] p-8 space-y-8 mt-4 md:mt-10">
-                <div class="text-center">
-                    <h2 class="text-xl font-bold text-[#4A7C77]">Emergency Assistance</h2>
-                    <p class="text-gray-500 text-sm mt-2">Offline signaling activated.</p>
+        <div id="userSection" class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-4 gap-8 fade-in">
+            
+            <!-- LEFT COLUMN: Connectivity Methods -->
+            <div class="lg:col-span-1 space-y-4">
+                <div class="glass-card rounded-[2rem] p-5">
+                    <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Relay Protocols</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-3 p-2 rounded-xl bg-sage-green/10 border border-sage-green/20">
+                            <i class="fab fa-bluetooth text-blue-500 text-sm"></i>
+                            <span class="text-[10px] font-bold text-gray-600">BLE Mesh 5.0</span>
+                        </div>
+                        <div class="flex items-center space-x-3 p-2 rounded-xl bg-sage-green/10 border border-sage-green/20">
+                            <i class="fas fa-wifi text-orange-400 text-sm"></i>
+                            <span class="text-[10px] font-bold text-gray-600">WiFi Direct (P2P)</span>
+                        </div>
+                        <div class="flex items-center space-x-3 p-2 rounded-xl bg-sage-green/10 border border-sage-green/20">
+                            <i class="fas fa-broadcast-tower text-purple-500 text-sm"></i>
+                            <span class="text-[10px] font-bold text-gray-600">LoRa (Long Range)</span>
+                        </div>
+                        <div class="flex items-center space-x-3 p-2 rounded-xl bg-sage-green/10 border border-sage-green/20">
+                            <i class="fas fa-envelope-open-text text-teal-600 text-sm"></i>
+                            <span class="text-[10px] font-bold text-gray-600">DTN-Based SMS</span>
+                        </div>
+                    </div>
                 </div>
 
-                <form id="sosForm" class="space-y-6">
+                <!-- User Window -->
+                <div class="glass-card rounded-[2rem] p-5 space-y-4">
+                    <h3 class="text-[10px] font-black text-[#4A7C77] uppercase tracking-widest">User Details</h3>
                     <div class="space-y-2">
-                        <label class="text-xs font-bold text-gray-400 uppercase ml-1">Responder ID / Name</label>
-                        <input type="text" id="userId" placeholder="Anonymous User" 
-                            class="w-full px-5 py-4 rounded-2xl border-2 border-sage-green focus:border-soft-teal outline-none transition-all bg-white/50 text-gray-700">
+                        <input type="text" id="userName" placeholder="Name" class="w-full bg-gray-50 border border-sage-green rounded-xl p-2.5 text-xs input-focus">
+                        <input type="tel" id="userPhone" placeholder="Contact No." class="w-full bg-gray-50 border border-sage-green rounded-xl p-2.5 text-xs input-focus">
+                    </div>
+                </div>
+            </div>
+
+            <!-- MIDDLE COLUMN: SOS Action -->
+            <div class="lg:col-span-3 space-y-6">
+                <div class="glass-card rounded-[3rem] p-8 md:p-10 space-y-8 relative overflow-hidden">
+                    <!-- Background Decoration -->
+                    <div class="absolute top-0 right-0 p-8 opacity-5">
+                        <i class="fas fa-satellite-dish text-[120px]"></i>
                     </div>
 
-                    <div class="space-y-2">
-                        <label class="text-xs font-bold text-gray-400 uppercase ml-1">Type of Emergency</label>
-                        <select id="emergencyType" class="w-full px-5 py-4 rounded-2xl border-2 border-sage-green focus:border-soft-teal outline-none transition-all bg-white/50 appearance-none text-gray-700">
-                            <option value="Medical Assistance">Medical Emergency</option>
-                            <option value="Fire Outbreak">Fire / Smoke</option>
-                            <option value="Rescue/Accident">Accident / Physical Rescue</option>
-                        </select>
+                    <div class="text-center space-y-1">
+                        <h2 class="text-3xl font-bold text-[#4A7C77]">Broadcast SOS</h2>
+                        <p class="text-gray-500 text-sm">Emergency data propagates through neighbors until it finds internet.</p>
                     </div>
 
-                    <div class="p-4 bg-teal-50/50 rounded-2xl border border-soft-teal/20 text-[11px] text-gray-600">
-                        <i class="fas fa-lock text-soft-teal mr-1"></i> 
-                        Encryption Layer: $E_{k}(Location + Time + ID)$ via AES-256. 
-                        Data is fragmented and distributed across the mesh nodes.
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="emergency-pill py-4 rounded-2xl flex flex-col items-center justify-center space-y-1 active" onclick="selectType(this, 'Medical')">
+                            <i class="fas fa-heartpulse text-xl"></i>
+                            <span class="text-[11px] font-bold">Medical</span>
+                        </div>
+                        <div class="emergency-pill py-4 rounded-2xl flex flex-col items-center justify-center space-y-1" onclick="selectType(this, 'Fire')">
+                            <i class="fas fa-fire text-xl"></i>
+                            <span class="text-[11px] font-bold">Fire</span>
+                        </div>
+                        <div class="emergency-pill py-4 rounded-2xl flex flex-col items-center justify-center space-y-1" onclick="selectType(this, 'Rescue')">
+                            <i class="fas fa-person-falling text-xl"></i>
+                            <span class="text-[11px] font-bold">Rescue</span>
+                        </div>
                     </div>
+
+                    <textarea id="incidentNote" placeholder="Explain the situation..." 
+                        class="w-full bg-gray-50 border border-sage-green rounded-2xl p-4 text-sm input-focus h-24 transition-all"></textarea>
 
                     <button type="button" onclick="triggerSOS()" 
-                        class="sos-button w-full py-5 rounded-3xl text-white font-black text-lg flex items-center justify-center space-x-3 pulse">
-                        <i class="fas fa-satellite-dish"></i>
-                        <span>SEND SOS</span>
+                        class="sos-button w-full py-12 rounded-[2.5rem] text-white font-black text-3xl flex flex-col items-center justify-center space-y-2 pulse shadow-2xl">
+                        <span class="flex items-center space-x-4">
+                            <i class="fas fa-wifi text-4xl rotate-90"></i>
+                            <span>INITIATE RELAY</span>
+                        </span>
+                        <span id="sosSubtext" class="text-[11px] opacity-70 font-normal uppercase tracking-[0.2em]">AES-256 P2P Protocol</span>
                     </button>
-                </form>
+                </div>
             </div>
         </div>
 
-        <!-- SECTION 2: RESPONDER DASHBOARD (HIDDEN UNTIL SOS SENT) -->
-        <div id="responderSection" class="w-full max-w-5xl hidden space-y-6 fade-in">
+        <!-- SECTION 2: RESPONDER DASHBOARD & VISUALIZATION -->
+        <div id="responderSection" class="w-full max-w-6xl hidden space-y-6 fade-in">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                <!-- Left: Mesh Map -->
-                <div class="lg:col-span-2 glass-card rounded-3xl p-6 flex flex-col">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="font-bold text-[#4A7C77] flex items-center">
-                            <i class="fas fa-project-diagram mr-2"></i> Live Mesh Map
-                        </h3>
-                        <div class="flex space-x-4">
-                            <div class="flex items-center space-x-2">
-                                <span class="text-[10px] font-bold text-gray-500 uppercase">BT Mesh</span>
-                                <label class="switch">
-                                    <input type="checkbox" checked>
-                                    <span class="slider"></span>
-                                </label>
+                <!-- Expanded Architecture Visualizer -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="glass-card rounded-[2.5rem] p-8 flex flex-col h-[550px]">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 class="font-bold text-[#4A7C77] text-lg">Cross-Internet Relay Visualization</h3>
+                                <p class="text-xs text-gray-400">Offline Mesh → LoRa Gateway → Internet Backbone → Responder</p>
                             </div>
-                            <div class="flex items-center space-x-2">
-                                <span class="text-[10px] font-bold text-gray-500 uppercase">Wi-Fi Direct</span>
-                                <label class="switch">
-                                    <input type="checkbox">
-                                    <span class="slider"></span>
-                                </label>
+                            <div id="hopCounter" class="bg-soft-teal text-white px-4 py-2 rounded-xl text-xs font-bold">
+                                Total Hops: 0
                             </div>
+                        </div>
+
+                        <div class="bg-slate-900 rounded-3xl flex-grow relative overflow-hidden shadow-inner">
+                            <svg width="100%" height="100%" viewBox="0 0 800 450" class="absolute inset-0" id="meshSvg">
+                                <!-- ZONE 1: DISASTER AREA -->
+                                <rect x="20" y="20" width="250" height="410" rx="20" fill="rgba(230, 57, 70, 0.05)" stroke="rgba(230, 57, 70, 0.2)" stroke-dasharray="4" />
+                                <text x="40" y="45" fill="#E63946" class="text-[10px] font-black uppercase">Offline Disaster Zone</text>
+                                
+                                <!-- ZONE 2: INTERNET -->
+                                <rect x="530" y="20" width="250" height="410" rx="20" fill="rgba(58, 134, 255, 0.05)" stroke="rgba(58, 134, 255, 0.2)" stroke-dasharray="4" />
+                                <text x="550" y="45" fill="#3A86FF" class="text-[10px] font-black uppercase">Internet / Cloud</text>
+
+                                <!-- RELAY LINES -->
+                                <!-- Local Mesh -->
+                                <line x1="80" y1="225" x2="160" y2="120" class="mesh-line opacity-0" id="line1" stroke-width="2" />
+                                <line x1="160" y1="120" x2="220" y2="280" class="mesh-line opacity-0" id="line2" stroke-width="2" />
+                                <!-- LoRa / Bridge -->
+                                <line x1="220" y1="280" x2="400" y2="225" class="mesh-line opacity-0" id="line3" stroke-width="3" stroke="#9B59B6" />
+                                <!-- Internet Hops -->
+                                <line x1="400" y1="225" x2="580" y2="150" class="internet-line opacity-0" id="line4" stroke-width="2" />
+                                <line x1="580" y1="150" x2="720" y2="225" class="internet-line opacity-0" id="line5" stroke-width="2" />
+                                
+                                <!-- NODES -->
+                                <g>
+                                    <circle cx="80" cy="225" r="10" fill="#E63946" class="node-active" id="sourceNode" />
+                                    <text x="60" y="250" fill="white" class="text-[9px]">Sender</text>
+                                </g>
+                                <g>
+                                    <circle cx="160" cy="120" r="8" fill="#4A7C77" id="node1" class="opacity-20" />
+                                    <text x="140" y="105" fill="#4A7C77" class="text-[8px]">BLE Peer</text>
+                                </g>
+                                <g>
+                                    <circle cx="220" cy="280" r="8" fill="#4A7C77" id="node2" class="opacity-20" />
+                                    <text x="200" y="305" fill="#4A7C77" class="text-[8px]">WiFi Peer</text>
+                                </g>
+                                <g>
+                                    <circle cx="400" cy="225" r="14" fill="#9B59B6" id="node3" class="opacity-20" />
+                                    <text x="375" y="255" fill="#9B59B6" class="text-[10px] font-black uppercase">LoRa Gateway</text>
+                                </g>
+                                <g>
+                                    <circle cx="580" cy="150" r="8" fill="#3A86FF" id="node4" class="opacity-20" />
+                                    <text x="560" y="135" fill="#3A86FF" class="text-[8px]">ISP Server</text>
+                                </g>
+                                <g>
+                                    <circle cx="720" cy="225" r="14" fill="#2ECC71" id="node5" class="opacity-20" />
+                                    <text x="680" y="255" fill="#2ECC71" class="text-[10px] font-black uppercase">Responder</text>
+                                </g>
+                            </svg>
                         </div>
                     </div>
 
-                    <!-- SVG Mesh Visualizer -->
-                    <div class="bg-[#f0f4f3] rounded-2xl flex-grow h-[350px] relative overflow-hidden border border-sage-green/50">
-                        <svg width="100%" height="100%" viewBox="0 0 400 300" class="absolute inset-0">
-                            <!-- Connections -->
-                            <line x1="50" y1="150" x2="150" y2="80" class="mesh-line" stroke-width="2" />
-                            <line x1="150" y1="80" x2="250" y2="220" class="mesh-line" stroke-width="2" />
-                            <line x1="250" y1="220" x2="350" y2="150" class="mesh-line" stroke-width="2" />
-                            
-                            <!-- Nodes -->
-                            <!-- User Node -->
-                            <circle cx="50" cy="150" r="8" fill="#4A7C77" class="node-active" />
-                            <text x="35" y="175" class="text-[10px] font-bold fill-[#4A7C77]">USER</text>
-                            
-                            <!-- Hop 1 -->
-                            <circle cx="150" cy="80" r="6" fill="#A0C4C1" />
-                            <text x="130" y="70" class="text-[10px] fill-gray-400">Node_A7</text>
-                            
-                            <!-- Hop 2 -->
-                            <circle cx="250" cy="220" r="6" fill="#A0C4C1" />
-                            <text x="235" y="240" class="text-[10px] fill-gray-400">Node_B2</text>
-                            
-                            <!-- Responder -->
-                            <circle cx="350" cy="150" r="10" fill="#E63946" class="node-active" />
-                            <text x="325" y="180" class="text-[10px] font-bold fill-[#E63946]">RESPONDER</text>
-                        </svg>
-                        
-                        <div class="absolute bottom-4 left-4 bg-white/80 p-3 rounded-xl border border-sage-green text-[11px]">
-                            <p><strong>Latency:</strong> 42ms (3 Hops)</p>
-                            <p><strong>Signal Strength:</strong> -64dBm</p>
+                    <div class="glass-card rounded-[2rem] p-6 h-[200px] overflow-hidden flex flex-col">
+                        <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Transmission History</h4>
+                        <div id="relayLog" class="space-y-2 overflow-y-auto flex-grow pr-2 custom-scrollbar text-[10px]">
                         </div>
                     </div>
                 </div>
 
-                <!-- Right: Gemini AI Intelligence -->
+                <!-- Triage & Info -->
                 <div class="space-y-6">
-                    <div class="glass-card rounded-3xl p-6 ai-panel">
-                        <div class="flex items-center space-x-2 mb-4">
-                            <div class="p-2 bg-soft-teal/10 rounded-lg text-soft-teal">
-                                <i class="fas fa-robot"></i>
-                            </div>
-                            <h3 class="font-bold text-[#4A7C77]">Gemini AI Summary</h3>
-                        </div>
-                        <div id="aiSummary" class="text-sm text-gray-600 leading-relaxed space-y-3">
-                            <p class="italic text-gray-400">Analyzing encrypted packet stream...</p>
+                    <div class="glass-card rounded-[2rem] p-6 border-l-8 border-soft-teal">
+                        <h3 class="font-bold text-[#4A7C77] mb-4">AI Analysis</h3>
+                        <div id="aiSummary" class="text-xs text-gray-600 leading-relaxed">
+                            Awaiting packet delivery...
                         </div>
                     </div>
 
-                    <div class="glass-card rounded-3xl p-6">
-                        <h3 class="font-bold text-gray-700 text-sm mb-4">Packet Metadata</h3>
-                        <div class="space-y-3 text-[11px] font-mono text-gray-500">
-                            <div class="flex justify-between border-b pb-1">
-                                <span>Payload ID:</span>
-                                <span class="text-soft-teal">#SL-992-X</span>
-                            </div>
-                            <div class="flex justify-between border-b pb-1">
-                                <span>Coordinates:</span>
-                                <span class="text-soft-teal">26.9124°N, 75.7873°E</span>
-                            </div>
-                            <div class="flex justify-between border-b pb-1">
-                                <span>Timestamp:</span>
-                                <span class="text-soft-teal">11:07:42 AM IST</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span>Security:</span>
-                                <span class="text-green-600">AES-GCM VERIFIED</span>
-                            </div>
-                        </div>
+                    <div class="bg-slate-800 p-6 rounded-[2rem] text-white">
+                        <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Active Connection List</h4>
+                        <ul class="text-[10px] space-y-2 text-gray-400 font-mono">
+                            <li>1. <span class="text-teal-400">BLE MESH</span> (Short range/Peer)</li>
+                            <li>2. <span class="text-orange-400">WIFI DIRECT</span> (Medium range/Peer)</li>
+                            <li>3. <span class="text-purple-400">LORA</span> (10km+ Gateways)</li>
+                            <li>4. <span class="text-blue-400">TCP/IP</span> (Backbone Internet)</li>
+                            <li>5. <span class="text-pink-400">DTN SMS</span> (Store & Forward)</li>
+                        </ul>
                     </div>
                 </div>
             </div>
-            
-            <button onclick="window.location.reload()" class="w-full py-4 text-gray-400 text-sm hover:text-soft-teal transition-colors">
-                <i class="fas fa-redo mr-2"></i> Reset for New Simulation
-            </button>
         </div>
-
     </main>
 
-    <!-- Project Footer -->
-    <footer class="p-10 bg-white/40 border-t border-sage-green mt-10">
-        <div class="max-w-6xl mx-auto flex flex-col items-center">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10 text-center">
-                <div>
-                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Our Stack</h4>
-                    <ul class="text-sm text-gray-600 space-y-1">
-                        <li>Flutter (Mobile)</li>
-                        <li>FastAPI / MongoDB</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Protocol</h4>
-                    <ul class="text-sm text-gray-600 space-y-1">
-                        <li>Bluetooth Mesh</li>
-                        <li>Wi-Fi Direct P2P</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Security</h4>
-                    <ul class="text-sm text-gray-600 space-y-1">
-                        <li>AES-256 GCM</li>
-                        <li>Diffie-Hellman Key</li>
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Intelligence</h4>
-                    <ul class="text-sm text-gray-600 space-y-1">
-                        <li>Gemini Flash API</li>
-                        <li>Emergency Triage</li>
-                    </ul>
+    <footer class="p-10 bg-white border-t border-sage-green mt-10">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="space-y-4">
+                <h4 class="text-xs font-black text-[#4A7C77] uppercase tracking-widest">Connect with Us</h4>
+                <div class="text-[11px] text-gray-500 space-y-1">
+                    <p><i class="fas fa-envelope mr-2"></i> help@solace.org</p>
+                    <p><i class="fas fa-phone-alt mr-2"></i> +91 1800-SOLACE</p>
+                    <p><i class="fas fa-map-marker-alt mr-2"></i> Jaipur, Rajasthan, India</p>
                 </div>
             </div>
-            <div class="w-full h-px bg-sage-green mb-6"></div>
-            <p class="text-[11px] text-gray-400 font-medium">© 2026 Solace Team | Problem Statement 05 | Disaster Management Network</p>
+            <div class="md:text-center space-y-4">
+                <h4 class="text-xs font-black text-[#4A7C77] uppercase tracking-widest">Innovation Team</h4>
+                <div class="text-[11px] text-gray-500 font-bold space-y-1">
+                    <p>Tanveen Kaur • Jiya Min</p>
+                    <p>Mahima Agrawal • Pankhuri Agarwal</p>
+                </div>
+            </div>
+            <div class="md:text-right">
+                <p class="text-[10px] text-gray-400 font-medium">© 2026 SOLACE | PS-05</p>
+                <p class="text-[9px] text-gray-300 mt-2">DECENTRALIZED COMMUNICATION PROTOCOL</p>
+            </div>
         </div>
     </footer>
 
     <script>
+        let selectedEmergency = 'Medical';
+
+        function selectType(el, type) {
+            document.querySelectorAll('.emergency-pill').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            selectedEmergency = type;
+        }
+
         function triggerSOS() {
-            const userId = document.getElementById('userId').value || "Anonymous User";
-            const eType = document.getElementById('emergencyType').value;
+            const name = document.getElementById('userName').value || "Anonymous";
+            const note = document.getElementById('incidentNote').value;
             const btn = document.querySelector('.sos-button');
             
-            // Interaction Feedback
-            btn.innerHTML = '<span>ENCRYPTING & BROADCASTING...</span>';
             btn.classList.add('opacity-50');
             btn.disabled = true;
+            document.getElementById('sosSubtext').innerText = "Broadcasting to Peers...";
 
             setTimeout(() => {
                 document.getElementById('userSection').classList.add('hidden');
                 document.getElementById('responderSection').classList.remove('hidden');
-                simulateAIResponse(userId, eType);
-            }, 2000);
+                runAdvancedMeshSimulation(selectedEmergency, note, name);
+            }, 1200);
         }
 
-        function simulateAIResponse(user, type) {
-            const summaryBox = document.getElementById('aiSummary');
-            const summaryText = `
-                <div class="p-3 bg-white rounded-xl shadow-sm border border-sage-green">
-                    <span class="block font-bold text-soft-teal mb-1">Incident Report:</span>
-                    Priority 1 alert received from <strong>${user}</strong> via Mesh Hop 3. 
-                    Categorized as <strong>${type}</strong>. 
-                    AI Recommendation: Immediate dispatch of nearest ${type.toLowerCase().includes('medical') ? 'Ambulance' : 'Response Team'} to GPS sector 7B.
-                </div>
-                <div class="flex items-center space-x-2 px-2">
-                    <i class="fas fa-check-double text-green-500 text-xs"></i>
-                    <span class="text-[10px] text-gray-400 font-bold uppercase">Responder Notified</span>
+        function addLog(msg, color="text-gray-500") {
+            const log = document.getElementById('relayLog');
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = "log-entry p-2 bg-slate-50 border-l-2 mb-2 flex justify-between";
+            div.innerHTML = `<span class="${color}">${msg}</span><span class="text-[8px] opacity-40">${time}</span>`;
+            log.prepend(div);
+        }
+
+        function runAdvancedMeshSimulation(type, note, name) {
+            const hopIds = ['line1', 'line2', 'line3', 'line4', 'line5'];
+            const nodeIds = ['node1', 'node2', 'node3', 'node4', 'node5'];
+            const labels = [
+                "BLE Peer (Local Neighborhood)",
+                "WiFi Direct Node (Building Edge)",
+                "LoRa Base Station (City Gateway)",
+                "National ISP Backbone (Internet)",
+                "Emergency Dispatch Server (Cloud)"
+            ];
+            const colors = ["text-teal-600", "text-orange-600", "text-purple-600", "text-blue-600", "text-green-600"];
+            
+            let currentHop = 0;
+            addLog(`INITIALIZING SOS: Payload signed by ${name}`, "text-red-500 font-bold");
+
+            const interval = setInterval(() => {
+                if (currentHop < hopIds.length) {
+                    const line = document.getElementById(hopIds[currentHop]);
+                    const node = document.getElementById(nodeIds[currentHop]);
+                    
+                    line.classList.remove('opacity-0');
+                    node.classList.remove('opacity-20');
+                    node.classList.add('relay-pulse');
+                    
+                    addLog(`Hop ${currentHop + 1}: Relayed via ${labels[currentHop]}`, colors[currentHop]);
+                    
+                    currentHop++;
+                    document.getElementById('hopCounter').innerText = `Total Hops: ${currentHop}`;
+                } else {
+                    clearInterval(interval);
+                    triggerFinalAI(type, note, name);
+                }
+            }, 1500);
+        }
+
+        function triggerFinalAI(type, note, name) {
+            const aiBox = document.getElementById('aiSummary');
+            aiBox.innerHTML = `
+                <div class="space-y-3">
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-0.5 bg-red-100 text-red-600 text-[9px] font-black rounded uppercase">Critical Alert</span>
+                        <span class="text-[9px] text-gray-400 font-bold uppercase">Internet Reached</span>
+                    </div>
+                    <p class="font-bold text-gray-800">Sender: ${name}</p>
+                    <p class="text-gray-600"><strong>Summary:</strong> High-priority ${type} alert. The signal traveled 3 offline hops before hitting the LoRa gateway and routing through the internet.</p>
+                    <div class="p-2 bg-gray-50 border border-gray-100 rounded text-italic">
+                        "${note || 'No additional notes provided.'}"
+                    </div>
+                    <button class="w-full py-2 bg-red-500 text-white text-[10px] font-black rounded-lg mt-2">ACKNOWLEDGE & DEPLOY</button>
                 </div>
             `;
-            
-            setTimeout(() => {
-                summaryBox.innerHTML = summaryText;
-            }, 1000);
+            addLog("SUCCESS: Data delivered to target responder.", "text-green-600 font-black");
         }
     </script>
 </body>
