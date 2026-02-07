@@ -1,6 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    // Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('Solace Mesh PWA Ready.'))
+      .catch(err => console.log('PWA Registry failed.'));
+  });
+}
+
+const socket = io(); 
+// ... rest of your existing socket logic      
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solace - Emergency Mesh Network</title>
