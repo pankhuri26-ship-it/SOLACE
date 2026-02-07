@@ -255,14 +255,12 @@
             <div>
                 <h1 class="text-2xl font-black tracking-tight text-[#4A7C77]">SOLACE</h1>
                 <div class="flex items-center space-x-2">
-                    <!-- Removed PS-05 -->
                     <span class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Emergency Mesh Architecture</span>
                 </div>
             </div>
         </div>
         
         <div class="flex items-center space-x-4 mt-4 lg:mt-0">
-            <!-- Changed text color to black -->
             <button onclick="showContactModal()" class="px-4 py-2 rounded-xl border border-soft-teal/30 text-black text-xs font-bold hover:bg-soft-teal hover:text-white transition-all">
                 <i class="fas fa-headset mr-2"></i>Help & Contact
             </button>
@@ -375,8 +373,18 @@
                             </div>
                             <p class="text-[9px] text-gray-400 mt-2 italic">*Requires 70% neighbor consensus to initiate dispatch</p>
                         </div>
+                        
+                        <!-- Dashboard Stress Level Indicator -->
+                        <div id="dashboardStressContainer" class="hidden mb-4 bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                            <div class="flex justify-between items-center">
+                                <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center">
+                                    <i class="fas fa-wave-square mr-2 text-orange-400"></i>Biometric Stress
+                                </h4>
+                                <span id="dashboardStressValue" class="text-xs font-bold px-3 py-1.5 rounded-lg border">--</span>
+                            </div>
+                        </div>
 
-                        <!-- Mesh Map with Labels -->
+                        <!-- Mesh Map -->
                         <div class="bg-slate-900 rounded-3xl h-64 relative overflow-hidden shadow-inner mb-4">
                             <svg width="100%" height="100%" viewBox="0 0 800 400" id="meshSvg">
                                 <line x1="80" y1="200" x2="160" y2="100" class="mesh-line opacity-0" id="line1" stroke-width="2" />
@@ -424,9 +432,20 @@
                                 </div>
                             </div>
                             <div class="flex-grow">
-                                <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-widest">En-Route Unit</h4>
-                                <p id="vehicleName" class="text-md font-bold text-gray-800">Assigning...</p>
-                                <p id="vehiclePlate" class="text-[10px] text-soft-teal font-mono">CONFIRMED GENUINE</p>
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-widest">En-Route Unit</h4>
+                                        <p id="vehicleName" class="text-md font-bold text-gray-800">Assigning...</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <h4 class="text-[9px] font-black text-orange-500 uppercase tracking-widest">Time to Arrival</h4>
+                                        <p id="etaCountdown" class="text-lg font-black text-orange-600">--:--</p>
+                                    </div>
+                                </div>
+                                <div class="mt-2 flex items-center space-x-2">
+                                    <span class="px-2 py-0.5 bg-soft-teal/10 rounded text-[10px] text-soft-teal font-mono uppercase">ID: <span id="vehiclePlate">----</span></span>
+                                    <span id="finalStressBadge" class="hidden px-2 py-0.5 bg-red-100 rounded text-[10px] text-red-600 font-bold uppercase">STRESS: --</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -484,6 +503,7 @@
             </div>
         </div>
 
+        <!-- Support Modal -->
         <div id="contactModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="hideContactModal()"></div>
             <div class="glass-card relative w-full max-w-2xl rounded-[2.5rem] p-8 bg-white shadow-2xl animate-fade-in">
@@ -505,24 +525,23 @@
         let currentProtocol = 'ble';
         let simInterval = null;
         let stressInterval = null;
+        let etaInterval = null;
         let isSosActive = false;
         let trustScore = 0;
         let isVoiceMode = false;
         let finalStressLevel = 'Normal';
+        let etaSeconds = 0;
 
         const protocolData = {
-            ble: { 
-                speed: 1500, 
-                logs: [
-                    { simple: "Sending verification pop-up to 12 nearby devices...", tech: "BROADCAST_AUTH_CHALLENGE" },
-                    { simple: "Receiving neighbor affirmations (Peer 1 & 2 confirmed).", tech: "CONSENSUS_COLLECTING: 2/5" },
-                    { simple: "Trust score reached 75%. Authenticity verified.", tech: "CONSENSUS_THRESHOLD_MET: 0.75" },
-                    { simple: "Relaying confirmed signal to Solace Hub.", tech: "RELAY_UPSTREAM: HUB_01" },
-                    { simple: "Dispatch finalized. Professional help is on the way.", tech: "DISPATCH_TERMINAL_ACK" }
-                ] 
-            },
-            wifi: { speed: 1000, logs: [ { simple: "Checking area signal activity...", tech: "WIFI_P2P_SWEEP" }, { simple: "Peer verification active...", tech: "PEER_P2P_VOUCH" }, { simple: "70% consensus reached.", tech: "VOUCH_OK" }, { simple: "Data passing through gateway...", tech: "GATEWAY_ACTIVE" }, { simple: "Confirmed.", tech: "ACK" } ] },
-            lora: { speed: 2000, logs: [ { simple: "Long-range sweep initiated...", tech: "LORA_SWEEP" }, { simple: "Waiting for distant node verify...", tech: "WAIT_ACK" }, { simple: "Authentic report confirmed.", tech: "AUTH_TRUE" }, { simple: "Tower link active.", tech: "TOWER_LINK" }, { simple: "Dispatching.", tech: "ACK" } ] }
+            ble: { speed: 1500, etaBase: 480, logs: [
+                { simple: "Sending verification pop-up to 12 nearby devices...", tech: "BROADCAST_AUTH_CHALLENGE" },
+                { simple: "Receiving neighbor affirmations (Peer 1 & 2 confirmed).", tech: "CONSENSUS_COLLECTING: 2/5" },
+                { simple: "Trust score reached 75%. Authenticity verified.", tech: "CONSENSUS_THRESHOLD_MET: 0.75" },
+                { simple: "Relaying confirmed signal to Solace Hub.", tech: "RELAY_UPSTREAM: HUB_01" },
+                { simple: "Dispatch finalized. Professional help is on the way.", tech: "DISPATCH_TERMINAL_ACK" }
+            ]},
+            wifi: { speed: 1000, etaBase: 360, logs: [ { simple: "Checking area signal activity...", tech: "WIFI_P2P_SWEEP" }, { simple: "Peer verification active...", tech: "PEER_P2P_VOUCH" }, { simple: "70% consensus reached.", tech: "VOUCH_OK" }, { simple: "Data passing through gateway...", tech: "GATEWAY_ACTIVE" }, { simple: "Confirmed.", tech: "ACK" } ] },
+            lora: { speed: 2000, etaBase: 900, logs: [ { simple: "Long-range sweep initiated...", tech: "LORA_SWEEP" }, { simple: "Waiting for distant node verify...", tech: "WAIT_ACK" }, { simple: "Authentic report confirmed.", tech: "AUTH_TRUE" }, { simple: "Tower link active.", tech: "TOWER_LINK" }, { simple: "Dispatching.", tech: "ACK" } ] }
         };
 
         const vehicleData = {
@@ -556,11 +575,7 @@
             if (isSosActive) return;
             isVoiceMode = true;
             document.getElementById('voiceOverlay').style.display = 'flex';
-            
-            // Start stress detection simulation
             simulateStressAnalysis();
-            
-            // Simulate 4 seconds of "listening/analysis" before auto-triggering
             setTimeout(() => {
                 if (isVoiceMode) {
                     hideVoiceOverlay();
@@ -573,33 +588,14 @@
             let level = 10;
             const bar = document.getElementById('stressBar');
             const label = document.getElementById('stressValue');
-            
             stressInterval = setInterval(() => {
-                // Fluctuate randomly but generally upwards to simulate distress
                 const flux = Math.random() * 20 - 5;
                 level = Math.min(100, Math.max(10, level + flux));
-                
                 bar.style.width = level + '%';
-                
-                if (level < 40) {
-                    label.innerText = "NORMAL";
-                    label.className = "text-sm font-black text-green-400";
-                    finalStressLevel = "Low";
-                } else if (level < 75) {
-                    label.innerText = "ELEVATED";
-                    label.className = "text-sm font-black text-yellow-400";
-                    finalStressLevel = "Medium";
-                } else {
-                    label.innerText = "CRITICAL DETECTED";
-                    label.className = "text-sm font-black text-red-500 animate-pulse";
-                    finalStressLevel = "High - Critical";
-                }
+                if (level < 40) { label.innerText = "NORMAL"; label.className = "text-sm font-black text-green-400"; finalStressLevel = "Low"; }
+                else if (level < 75) { label.innerText = "ELEVATED"; label.className = "text-sm font-black text-yellow-400"; finalStressLevel = "Medium"; }
+                else { label.innerText = "CRITICAL DETECTED"; label.className = "text-sm font-black text-red-500 animate-pulse"; finalStressLevel = "Critical"; }
             }, 200);
-        }
-
-        function cancelVoice() {
-            isVoiceMode = false;
-            hideVoiceOverlay();
         }
 
         function hideVoiceOverlay() {
@@ -612,18 +608,92 @@
             document.getElementById('voiceFab').style.display = 'none';
             document.getElementById('restoreSessionCard').classList.remove('hidden');
             document.getElementById('mainSosBtn').classList.add('opacity-50');
+            
+            // Set ETA based on protocol + some randomness
+            etaSeconds = protocolData[currentProtocol].etaBase + Math.floor(Math.random() * 120);
+            
             updateResponderUI();
+            
+            if (isVoiceMode) {
+                document.getElementById('dashboardStressContainer').classList.remove('hidden');
+                const dbValue = document.getElementById('dashboardStressValue');
+                dbValue.innerText = finalStressLevel.toUpperCase();
+                
+                const badge = document.getElementById('finalStressBadge');
+                badge.innerText = `STRESS: ${finalStressLevel.toUpperCase()}`;
+                badge.classList.remove('hidden');
+
+                if (finalStressLevel === "Critical") {
+                    dbValue.className = "text-xs font-bold px-3 py-1.5 rounded-lg border bg-red-100 border-red-200 text-red-600 animate-pulse";
+                } else if (finalStressLevel === "Medium") {
+                    dbValue.className = "text-xs font-bold px-3 py-1.5 rounded-lg border bg-yellow-100 border-yellow-200 text-yellow-700";
+                } else {
+                    dbValue.className = "text-xs font-bold px-3 py-1.5 rounded-lg border bg-green-100 border-green-200 text-green-700";
+                }
+            }
+
             setTimeout(() => { goToResponder(); runSimulation(); }, 800);
+        }
+
+        function runSimulation() {
+            let step = 0;
+            const hopIds = ['line1', 'line2', 'line3', 'line4', 'line5'];
+            const nodeIds = ['node1', 'node2', 'node3', 'node4', 'node5'];
+            let logs = [...protocolData[currentProtocol].logs];
+
+            if (isVoiceMode) {
+                logs[0] = { simple: `Analyzed Voice Packet. Stress Level: ${finalStressLevel}.`, tech: "BIO_METRIC_PACKET_APPENDED" };
+                logs[1] = { simple: "Neighbors listening/verifying emergency audio...", tech: "AUDIO_CONSENSUS_PEER" };
+            }
+
+            simInterval = setInterval(() => {
+                if (step < hopIds.length) {
+                    document.getElementById(hopIds[step]).classList.remove('opacity-0');
+                    document.getElementById(nodeIds[step]).classList.remove('opacity-20');
+                    document.getElementById(nodeIds[step]).classList.add('relay-pulse');
+                    if (logs[step]) addRelayLog(logs[step]);
+                    
+                    if (step < 3) {
+                        trustScore += (Math.random() * 30);
+                        if (trustScore > 75 && step == 2) trustScore = 75;
+                        document.getElementById('verificationBar').style.width = trustScore + '%';
+                        document.getElementById('verificationPercent').innerText = Math.round(trustScore) + '% Verified';
+                    } else if (step >= 3) {
+                        trustScore = 96 + Math.floor(Math.random() * 3);
+                        document.getElementById('verificationBar').style.width = trustScore + '%';
+                        document.getElementById('verificationPercent').innerText = trustScore + '% Confirmed';
+                    }
+                    step++;
+                } else {
+                    clearInterval(simInterval);
+                    document.getElementById('dispatchDetails').classList.remove('hidden');
+                    startETACountdown();
+                }
+            }, protocolData[currentProtocol].speed);
+        }
+
+        function startETACountdown() {
+            const display = document.getElementById('etaCountdown');
+            etaInterval = setInterval(() => {
+                if (etaSeconds <= 0) {
+                    display.innerText = "ARRIVED";
+                    display.classList.add('animate-bounce');
+                    clearInterval(etaInterval);
+                    return;
+                }
+                etaSeconds--;
+                const mins = Math.floor(etaSeconds / 60);
+                const secs = etaSeconds % 60;
+                display.innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);
         }
 
         function addRelayLog(logObj) {
             const logs = document.getElementById('relayLogs');
             const item = document.createElement('div');
             item.className = 'relay-log-item';
-            
             let icon = 'fa-shield-check';
             if (isVoiceMode && logObj.tech.includes('BROADCAST')) icon = 'fa-microphone-lines';
-
             item.innerHTML = `<span class="log-simple"><i class="fas ${icon} text-soft-teal mr-2"></i> ${logObj.simple}</span><span class="log-tech">${logObj.tech}</span>`;
             logs.prepend(item);
         }
@@ -638,67 +708,12 @@
             const prot = protocols[selectedEmergency];
             document.getElementById('victimInstructions').innerHTML = prot.victim.map(s => `<div class="action-step text-[11px]">${s}</div>`).join('');
             document.getElementById('helperInstructions').innerHTML = prot.helper.map(s => `<div class="action-step text-[11px]" style="border-color:#3B82F6">${s}</div>`).join('');
-            
-            const facContainer = document.getElementById('nearbyFacilities');
-            facContainer.innerHTML = `<div class="p-2 border border-slate-200 rounded-xl text-[10px]">Verifying nearby ${selectedEmergency} hubs...</div>`;
+            document.getElementById('nearbyFacilities').innerHTML = `<div class="p-2 border border-slate-200 rounded-xl text-[10px]">Locating ${selectedEmergency} hubs...</div>`;
         }
 
-        function runSimulation() {
-            let step = 0;
-            const hopIds = ['line1', 'line2', 'line3', 'line4', 'line5'];
-            const nodeIds = ['node1', 'node2', 'node3', 'node4', 'node5'];
-            let logs = [...protocolData[currentProtocol].logs];
-
-            if (isVoiceMode) {
-                // Inject stress data into simulation logs if voice mode was used
-                logs[0] = { simple: `Analyzed Voice Packet. Stress Level: ${finalStressLevel}.`, tech: "BIO_METRIC_PACKET_APPENDED" };
-                logs[1] = { simple: "Neighbors listening/verifying emergency audio...", tech: "AUDIO_CONSENSUS_PEER" };
-            }
-
-            simInterval = setInterval(() => {
-                if (step < hopIds.length) {
-                    document.getElementById(hopIds[step]).classList.remove('opacity-0');
-                    document.getElementById(nodeIds[step]).classList.remove('opacity-20');
-                    document.getElementById(nodeIds[step]).classList.add('relay-pulse');
-                    
-                    if (logs[step]) addRelayLog(logs[step]);
-                    
-                    if (step < 3) {
-                        trustScore += (Math.random() * 30);
-                        if (trustScore > 75 && step == 2) trustScore = 75;
-                        document.getElementById('verificationBar').style.width = trustScore + '%';
-                        document.getElementById('verificationPercent').innerText = Math.round(trustScore) + '% Verified';
-                        
-                        if (trustScore >= 70) {
-                            document.getElementById('verificationBar').classList.remove('bg-yellow-400');
-                            document.getElementById('verificationBar').classList.add('bg-green-500');
-                        }
-                    } else if (step >= 3) {
-                        trustScore = 100;
-                        document.getElementById('verificationBar').style.width = '100%';
-                        document.getElementById('verificationPercent').innerText = '100% Confirmed';
-                    }
-
-                    step++;
-                } else {
-                    clearInterval(simInterval);
-                    document.getElementById('dispatchDetails').classList.remove('hidden');
-                }
-            }, protocolData[currentProtocol].speed);
-        }
-
-        function goToUserSection() {
-            document.getElementById('responderSection').classList.add('hidden');
-            document.getElementById('userSection').classList.remove('hidden');
-            if (isSosActive) document.getElementById('activeSosBar').classList.add('show');
-        }
-
-        function goToResponder() {
-            document.getElementById('userSection').classList.add('hidden');
-            document.getElementById('responderSection').classList.remove('hidden');
-            document.getElementById('activeSosBar').classList.remove('show');
-        }
-
+        function cancelVoice() { isVoiceMode = false; hideVoiceOverlay(); }
+        function goToUserSection() { document.getElementById('responderSection').classList.add('hidden'); document.getElementById('userSection').classList.remove('hidden'); if (isSosActive) document.getElementById('activeSosBar').classList.add('show'); }
+        function goToResponder() { document.getElementById('userSection').classList.add('hidden'); document.getElementById('responderSection').classList.remove('hidden'); document.getElementById('activeSosBar').classList.remove('show'); }
         function terminateProcess() { if (confirm("Stop relay?")) location.reload(); }
         function showContactModal() { document.getElementById('contactModal').classList.remove('hidden'); }
         function hideContactModal() { document.getElementById('contactModal').classList.add('hidden'); }
