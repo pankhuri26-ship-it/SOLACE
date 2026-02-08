@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    
     // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -11,7 +12,7 @@ if ('serviceWorker' in navigator) {
 }
 
 const socket = io(); 
-// ... rest of your existing socket logic      
+// ... rest of your existing socket logic
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solace - Emergency Mesh Network</title>
@@ -780,7 +781,6 @@ const socket = io();
             document.getElementById('voiceOverlay').style.display = 'none';
             if(stressInterval) clearInterval(stressInterval);
         }
-
         function triggerSOS(type) {
             if (isSosActive) return;
             selectedEmergency = type;
