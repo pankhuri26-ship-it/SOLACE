@@ -29,7 +29,7 @@ io.on('connection', (socket) => {
             trustScore: 100
         };
     });
-
+            
     // Handle SOS Broadcast
     socket.on('broadcast_sos', (sosData) => {
         const incidentId = `INC-${Date.now()}`;

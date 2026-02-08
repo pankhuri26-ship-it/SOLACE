@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    
-    // Register Service Worker for PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('Solace Mesh PWA Ready.'))
-      .catch(err => console.log('PWA Registry failed.'));
-  });
-}
-
-const socket = io(); 
-// ... rest of your existing socket logic
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solace - Emergency Mesh Network</title>
@@ -260,22 +248,23 @@ const socket = io();
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <!-- Accessible Call Icon (Pop-up Trigger) -->
+    <button onclick="exportLocationLogs()" class="fixed bottom-4 left-4 z-50 bg-gray-800 text-white px-4 py-2 rounded-full text-xs font-bold border border-gray-600 hover:bg-gray-700 shadow-lg flex items-center transition-all hover:scale-105">
+        <i class="fas fa-download mr-2"></i> Save Logs
+    </button>   
+
     <div class="call-fab voice-pulse" onclick="startVoiceSOS()" id="voiceFab" title="Speak to Help">
         <i class="fas fa-phone-alt"></i>
     </div>
 
-    <!-- Voice Recording Overlay -->
     <div id="voiceOverlay" class="voice-status-overlay fade-in stress-grid">
         <div class="absolute top-10 left-0 right-0 text-center">
-             <h3 class="text-xs font-black uppercase tracking-[0.3em] text-gray-500">Biometric Analysis Active</h3>
+            <h3 class="text-xs font-black uppercase tracking-[0.3em] text-gray-500">Biometric Analysis Active</h3>
         </div>
 
         <div class="relative mb-8">
             <div class="w-40 h-40 rounded-full border-4 border-orange-500 flex items-center justify-center voice-pulse bg-orange-500/10 z-10 relative">
                 <i class="fas fa-microphone-lines text-6xl"></i>
             </div>
-            <!-- Animated rings for audio input visualization -->
             <div class="absolute inset-0 border border-orange-500/30 rounded-full animate-ping" style="animation-duration: 2s"></div>
             <div class="absolute inset-0 border border-orange-500/20 rounded-full animate-ping" style="animation-duration: 3s; animation-delay: 0.5s"></div>
         </div>
@@ -283,17 +272,14 @@ const socket = io();
         <h2 class="text-3xl font-black mb-2 uppercase tracking-tighter">Listening...</h2>
         <p class="text-orange-200 text-lg mb-8">Just speak. We are analyzing your safety.</p>
 
-        <!-- Stress Meter UI -->
         <div class="w-72 bg-gray-900/80 rounded-2xl p-4 border border-gray-700 backdrop-blur-sm">
             <div class="flex justify-between items-end mb-2">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vocal Stress Level</span>
                 <span id="stressValue" class="text-sm font-black text-green-400">CALIBRATING</span>
             </div>
             <div class="h-3 bg-gray-800 rounded-full overflow-hidden relative">
-                <!-- Markers -->
                 <div class="absolute left-[33%] top-0 bottom-0 w-[1px] bg-gray-600 z-10"></div>
                 <div class="absolute left-[66%] top-0 bottom-0 w-[1px] bg-gray-600 z-10"></div>
-                <!-- Dynamic Bar -->
                 <div id="stressBar" class="h-full w-0 bg-gradient-to-r from-green-500 via-yellow-500 to-red-600 transition-all duration-200 ease-out"></div>
             </div>
             <div class="flex justify-between mt-1 text-[8px] text-gray-500 font-mono">
@@ -306,7 +292,6 @@ const socket = io();
         <button onclick="cancelVoice()" class="mt-12 px-8 py-3 bg-white/10 rounded-full text-xs font-bold uppercase tracking-widest border border-white/20 hover:bg-white/20 transition-all">Cancel Analysis</button>
     </div>
 
-    <!-- Active SOS Floating Bar -->
     <div id="activeSosBar" class="p-4 shadow-2xl flex justify-between items-center">
         <div class="flex items-center space-x-3">
             <div class="animate-pulse bg-white/20 p-2 rounded-lg">
@@ -320,7 +305,6 @@ const socket = io();
         <button onclick="goToResponder()" class="bg-white text-soft-teal px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">View Progress</button>
     </div>
 
-    <!-- Header -->
     <header class="p-6 flex flex-wrap justify-between items-center bg-white/60 border-b border-sage-green sticky top-0 z-50">
         <div class="flex items-center space-x-3">
             <div class="w-12 h-12 bg-[#4A7C77] rounded-2xl flex items-center justify-center text-white shadow-lg">
@@ -328,11 +312,10 @@ const socket = io();
             </div>
             <div>
                 <h1 class="text-2xl font-black tracking-tight text-[#4A7C77]">SOLACE</h1>
-                <!-- Removed subtitle PS 05 / Architecture text as requested, added Contact -->
                 <div class="flex items-center space-x-2 mt-1">
-                     <span class="px-2 py-0.5 bg-orange-100 text-orange-600 rounded text-[10px] font-black uppercase tracking-wider border border-orange-200">
+                    <span class="px-2 py-0.5 bg-orange-100 text-orange-600 rounded text-[10px] font-black uppercase tracking-wider border border-orange-200">
                         <i class="fas fa-phone mr-1"></i> Helpline: +91-112
-                     </span>
+                    </span>
                 </div>
             </div>
         </div>
@@ -350,7 +333,6 @@ const socket = io();
 
     <main class="flex-grow p-4 md:p-8 flex flex-col items-center">
         
-        <!-- SECTION 1: SOS ENTRY (USER VIEW) -->
         <div id="userSection" class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-4 gap-8 fade-in">
             
             <div class="lg:col-span-1 space-y-4">
@@ -361,13 +343,12 @@ const socket = io();
                     </button>
                 </div>
 
-                <!-- Replaced Relay Method Selector with Biometric Status -->
                 <div class="glass-card rounded-[2rem] p-5 border-l-4 border-orange-400">
                     <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Biometric Status</h3>
                     <div id="mainPageStressContainer" class="space-y-2">
                         <div class="flex items-center justify-between">
-                             <span class="text-xs font-bold text-gray-600">Voice Monitor</span>
-                             <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+                            <span class="text-xs font-bold text-gray-600">Voice Monitor</span>
+                            <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
                         </div>
                         <div id="mainPageStressValue" class="text-lg font-black text-gray-300">
                             READY
@@ -388,7 +369,6 @@ const socket = io();
                         class="w-full bg-gray-50 border border-sage-green rounded-2xl p-4 text-sm input-focus h-20 transition-all mb-4"></textarea>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Medical Button - Darkened -->
                         <button class="hold-btn btn-medical rounded-3xl p-8 flex flex-col items-center justify-center space-y-3 shadow-sm hover:shadow-lg"
                                 onmousedown="startHold('Medical', this)" ontouchstart="startHold('Medical', this)"
                                 onmouseup="cancelHold(this)" onmouseleave="cancelHold(this)" ontouchend="cancelHold(this)">
@@ -400,7 +380,6 @@ const socket = io();
                             </div>
                         </button>
 
-                        <!-- Fire Button - Darkened -->
                         <button class="hold-btn btn-fire rounded-3xl p-8 flex flex-col items-center justify-center space-y-3 shadow-sm hover:shadow-lg"
                                 onmousedown="startHold('Fire', this)" ontouchstart="startHold('Fire', this)"
                                 onmouseup="cancelHold(this)" onmouseleave="cancelHold(this)" ontouchend="cancelHold(this)">
@@ -412,7 +391,6 @@ const socket = io();
                             </div>
                         </button>
 
-                        <!-- Rescue Button - Darkened -->
                         <button class="hold-btn btn-rescue rounded-3xl p-8 flex flex-col items-center justify-center space-y-3 shadow-sm hover:shadow-lg"
                                 onmousedown="startHold('Rescue', this)" ontouchstart="startHold('Rescue', this)"
                                 onmouseup="cancelHold(this)" onmouseleave="cancelHold(this)" ontouchend="cancelHold(this)">
@@ -424,7 +402,6 @@ const socket = io();
                             </div>
                         </button>
 
-                        <!-- Miscellaneous Button - Darkened -->
                         <button class="hold-btn btn-misc rounded-3xl p-8 flex flex-col items-center justify-center space-y-3 shadow-sm hover:shadow-lg"
                                 onmousedown="startHold('Miscellaneous', this)" ontouchstart="startHold('Miscellaneous', this)"
                                 onmouseup="cancelHold(this)" onmouseleave="cancelHold(this)" ontouchend="cancelHold(this)">
@@ -442,7 +419,6 @@ const socket = io();
             </div>
         </div>
 
-        <!-- SECTION 2: RESPONDER & VERIFICATION DASHBOARD -->
         <div id="responderSection" class="w-full max-w-7xl hidden space-y-6 fade-in">
             <div class="flex justify-between items-center mb-2">
                 <button onclick="goToUserSection()" class="bg-white border border-soft-teal/30 px-6 py-2.5 rounded-2xl text-xs font-black text-soft-teal flex items-center space-x-2 shadow-sm uppercase tracking-wider">
@@ -471,7 +447,6 @@ const socket = io();
                             <p class="text-[9px] text-gray-400 mt-2 italic">*Requires 70% neighbor consensus. Max Trust: 90%.</p>
                         </div>
                         
-                        <!-- Dashboard Stress Level Indicator -->
                         <div id="dashboardStressContainer" class="hidden mb-4 bg-gray-50 border border-gray-200 rounded-2xl p-4 transition-all">
                             <div class="flex justify-between items-center">
                                 <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center">
@@ -481,7 +456,6 @@ const socket = io();
                             </div>
                         </div>
 
-                        <!-- Mesh Map -->
                         <div class="bg-slate-900 rounded-3xl h-64 relative overflow-hidden shadow-inner mb-4">
                             <svg width="100%" height="100%" viewBox="0 0 800 400" id="meshSvg">
                                 <line x1="80" y1="200" x2="160" y2="100" class="mesh-line opacity-0" id="line1" stroke-width="2" />
@@ -510,19 +484,18 @@ const socket = io();
                             </svg>
                         </div>
                         
-                        <!-- Signal Path Text -->
-                         <div class="bg-black/80 rounded-xl p-3 mb-4 border border-gray-700">
-                             <div class="text-[9px] text-gray-400 font-mono uppercase tracking-widest mb-1">Active Signal Path</div>
-                             <div class="flex items-center text-[10px] text-white font-mono space-x-1">
-                                 <span class="text-red-400">USR</span>
-                                 <i class="fas fa-angle-right text-gray-500"></i>
-                                 <span class="text-soft-teal">PEER_NET</span>
-                                 <i class="fas fa-angle-right text-gray-500"></i>
-                                 <span class="text-purple-400">HUB</span>
-                                 <i class="fas fa-angle-right text-gray-500"></i>
-                                 <span class="text-green-400">DISPATCH</span>
-                             </div>
-                         </div>
+                        <div class="bg-black/80 rounded-xl p-3 mb-4 border border-gray-700">
+                            <div class="text-[9px] text-gray-400 font-mono uppercase tracking-widest mb-1">Active Signal Path</div>
+                            <div class="flex items-center text-[10px] text-white font-mono space-x-1">
+                                <span class="text-red-400">USR</span>
+                                <i class="fas fa-angle-right text-gray-500"></i>
+                                <span class="text-soft-teal">PEER_NET</span>
+                                <i class="fas fa-angle-right text-gray-500"></i>
+                                <span class="text-purple-400">HUB</span>
+                                <i class="fas fa-angle-right text-gray-500"></i>
+                                <span class="text-green-400">DISPATCH</span>
+                            </div>
+                        </div>
 
                         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                             <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Live Status Journey</h4>
@@ -561,7 +534,6 @@ const socket = io();
                             </div>
                         </div>
 
-                        <!-- Real-time Location Relay -->
                         <div class="bg-gray-900 rounded-xl p-4 border border-gray-700 font-mono">
                             <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-700 pb-2 flex justify-between">
                                 <span><i class="fas fa-location-crosshairs mr-1"></i>Location Telemetry</span>
@@ -625,7 +597,7 @@ const socket = io();
                             <div id="nearbyFacilities" class="space-y-2"></div>
                         </div>
                         <div class="space-y-6">
-                             <div class="glass-card rounded-[2rem] p-6 bg-white/80">
+                            <div class="glass-card rounded-[2rem] p-6 bg-white/80">
                                 <h3 class="font-bold text-[#4A7C77] text-sm mb-4">NGO Contacts</h3>
                                 <div id="ngoList" class="space-y-2">
                                     <div class="p-2.5 rounded-xl border border-sage-green bg-white text-[10px]">
@@ -637,7 +609,6 @@ const socket = io();
                                 </div>
                             </div>
 
-                            <!-- New Active Relay Card -->
                             <div class="glass-card rounded-[2rem] p-6 bg-blue-50/50 border border-blue-100">
                                 <h3 class="font-bold text-blue-600 text-sm mb-3">Active Relay Protocol</h3>
                                 <div class="flex items-center space-x-4">
@@ -656,7 +627,6 @@ const socket = io();
             </div>
         </div>
 
-        <!-- Support Modal -->
         <div id="contactModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="hideContactModal()"></div>
             <div class="glass-card relative w-full max-w-2xl rounded-[2.5rem] p-8 bg-white shadow-2xl animate-fade-in">
@@ -683,7 +653,7 @@ const socket = io();
         let trustScore = 0;
         let isVoiceMode = false;
         let finalStressLevel = 'Normal';
-        let finalStressScore = 0; // New: capture numeric score
+        let finalStressScore = 0; 
         let etaSeconds = 0;
         let holdTimer = null;
         const HOLD_DURATION = 3000; // 3 seconds
@@ -722,7 +692,6 @@ const socket = io();
 
         function selectProtocol(id) {
             if (isSosActive) return;
-            // Function kept for compatibility but selector is hidden
             currentProtocol = id;
         }
 
@@ -802,7 +771,6 @@ const socket = io();
             const mainPageValue = document.getElementById('mainPageStressValue');
 
             if (isVoiceMode) {
-                // Modified: Add percentage
                 const displayStress = `${finalStressLevel.toUpperCase()} (${Math.round(finalStressScore)}%)`;
                 
                 dbValue.innerText = displayStress;
@@ -817,10 +785,10 @@ const socket = io();
                     mainPageValue.className = "text-lg font-black text-red-600 animate-pulse";
                 } else if (finalStressLevel === "Medium") {
                     dbValue.className = "text-xs font-bold px-3 py-1.5 rounded-lg border bg-yellow-100 border-yellow-200 text-yellow-700";
-                     mainPageValue.className = "text-lg font-black text-yellow-600";
+                    mainPageValue.className = "text-lg font-black text-yellow-600";
                 } else {
                     dbValue.className = "text-xs font-bold px-3 py-1.5 rounded-lg border bg-green-100 border-green-200 text-green-700";
-                     mainPageValue.className = "text-lg font-black text-green-600";
+                    mainPageValue.className = "text-lg font-black text-green-600";
                 }
             } else {
                 dbValue.innerText = "NOT ANALYZED";
@@ -853,23 +821,51 @@ const socket = io();
                     
                     if (step < 3) {
                         trustScore += (Math.random() * 30);
-                        // CAP TRUST AT 90%
                         if (trustScore > 90) trustScore = 90; 
                         document.getElementById('verificationBar').style.width = trustScore + '%';
                         document.getElementById('verificationPercent').innerText = Math.round(trustScore) + '% Verified';
                     } else if (step >= 3) {
-                         // CAP FINAL TRUST AT 90%
                         trustScore = 90;
                         document.getElementById('verificationBar').style.width = trustScore + '%';
                         document.getElementById('verificationPercent').innerText = trustScore + '% Confirmed';
                     }
-                    step++;
+                    step++;     
                 } else {
                     clearInterval(simInterval);
                     document.getElementById('dispatchDetails').classList.remove('hidden');
                     startETACountdown();
                 }
             }, protocolData[currentProtocol].speed);
+        }
+        
+        // --- NEW FUNCTION: Store Coordinates Locally ---
+        function logLocationLocally(lat, lng, entityType) {
+            let history = JSON.parse(localStorage.getItem('solace_geo_logs') || "[]");
+            const logEntry = {
+                timestamp: new Date().toISOString(),
+                entity: entityType,
+                latitude: parseFloat(lat).toFixed(6),
+                longitude: parseFloat(lng).toFixed(6)
+            };
+            history.push(logEntry);
+            localStorage.setItem('solace_geo_logs', JSON.stringify(history));
+            console.log(`[Local Log] Saved ${entityType} loc:`, logEntry);
+        }
+
+        // --- HELPER: Download the Log to a File ---
+        function exportLocationLogs() {
+            const data = localStorage.getItem('solace_geo_logs');
+            if(!data) { alert("No logs to export."); return; }
+            
+            const blob = new Blob([data], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `solace_logs_${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
 
         function startETACountdown() {
@@ -880,6 +876,9 @@ const socket = io();
             // Set User Fixed Coords
             document.getElementById('userLat').innerText = USER_LAT;
             document.getElementById('userLong').innerText = USER_LONG;
+
+            // --- Log Initial User Position ---
+            logLocationLocally(USER_LAT, USER_LONG, 'USER_FIXED');
 
             etaInterval = setInterval(() => {
                 if (etaSeconds <= 0) {
@@ -900,6 +899,9 @@ const socket = io();
                 uLat.innerText = unitLat.toFixed(4);
                 uLong.innerText = unitLong.toFixed(4);
 
+                // --- Log Unit Movement ---
+                logLocationLocally(unitLat, unitLong, 'UNIT_MOVING');
+
             }, 1000);
         }
 
@@ -919,11 +921,10 @@ const socket = io();
             
             document.getElementById('vehicleName').innerText = vInfo.name;
             document.getElementById('vehiclePlate').innerText = vInfo.plate;
-            document.getElementById('vehicleType').innerText = vInfo.type; // New Field
+            document.getElementById('vehicleType').innerText = vInfo.type; 
             document.getElementById('vehicleIcon').className = `fas ${vInfo.icon} text-2xl text-[#4A7C77]`;
             document.getElementById('emergencyIconLarge').className = `fas ${vInfo.typeIcon} text-2xl`;
             
-            // Update Protocol Card
             document.getElementById('activeRelayName').innerText = pInfo.name;
             document.getElementById('activeRelayIcon').className = `fas ${pInfo.icon} text-lg`;
             
@@ -940,33 +941,28 @@ const socket = io();
         function terminateProcess() {
             if (!confirm("Terminate current emergency request? This will reset the connection.")) return;
             
-            // Stop all timers
             clearInterval(simInterval);
             clearInterval(stressInterval);
             clearInterval(etaInterval);
             
-            // Reset State
             isSosActive = false;
             isVoiceMode = false;
             trustScore = 0;
             etaSeconds = 0;
             finalStressScore = 0;
             
-            // Reset UI - Views
             document.getElementById('responderSection').classList.add('hidden');
             document.getElementById('userSection').classList.remove('hidden');
             document.getElementById('activeSosBar').classList.remove('show');
-            document.getElementById('voiceFab').style.display = 'flex'; // Bring back phone icon
+            document.getElementById('voiceFab').style.display = 'flex'; 
             document.getElementById('restoreSessionCard').classList.add('hidden');
 
-            // Reset UI - Components
             document.getElementById('verificationBar').style.width = '0%';
             document.getElementById('verificationPercent').innerText = '0% Verified';
             document.getElementById('etaCountdown').innerText = '--:--';
             document.getElementById('relayLogs').innerHTML = '<div class="relay-log-item"><span class="log-simple">System Ready...</span><span class="log-tech">IDLE</span></div>';
             document.getElementById('dispatchDetails').classList.add('hidden');
             
-            // Reset Map
             const lines = document.querySelectorAll('.mesh-line, .internet-line');
             lines.forEach(l => l.classList.add('opacity-0'));
             const nodes = document.querySelectorAll('#meshSvg circle:not(.node-active)');
@@ -975,13 +971,11 @@ const socket = io();
                 n.classList.remove('relay-pulse');
             });
 
-            // Reset Stress Card on Main Page
             const mpVal = document.getElementById('mainPageStressValue');
             mpVal.innerText = "READY";
             mpVal.className = "text-lg font-black text-gray-300";
             document.getElementById('dashboardStressContainer').classList.add('hidden');
             
-            // Reset Inputs
             document.getElementById('incidentNote').value = '';
         }
 
