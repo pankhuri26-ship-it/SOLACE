@@ -1,2 +1,2 @@
-# SOLACE
-Building an emergency website for users
+# SOLACE 
+Building a website for users at the time of Natural Disasters.
